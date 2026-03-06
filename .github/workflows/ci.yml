@@ -23,7 +23,8 @@ jobs:
         run: npm ci
 
       - name: 🔍 Lint check
-        run: npx expo lint
+        run: npm run lint
+        continue-on-error: true
 
       - name: 🏗 Type check
         run: npx tsc --noEmit

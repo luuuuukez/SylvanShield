@@ -6,7 +6,8 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",
@@ -29,6 +30,8 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
+    "eslint": "^9.39.3",
+    "eslint-config-expo": "^55.0.0",
     "postcss": "^8.5.8",
     "typescript": "~5.9.2"
   },
