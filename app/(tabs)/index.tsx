@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Modal,
+  Pressable,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   useSessionStore,
@@ -27,6 +34,8 @@ const SHIFT_END_DELAY_MS = 5000;
 const GRACE_PERIOD_MS = 5000;
 /** Long-press duration in ALERT_SENT to clear and return to IDLE (3s). */
 const LONG_PRESS_ALERT_CLEAR_MS = 3000;
+/** Button height (h-60 = 240px) used for fill animation. */
+const ALERT_BUTTON_HEIGHT = 240;
 
 const CARD_TITLES: Record<string, string> = {
   IDLE: SESSION_STATUS_CONFIG.IDLE.label,
@@ -39,15 +48,21 @@ const CARD_SUBTITLES: Record<string, string> = {
   IDLE: SESSION_STATUS_CONFIG.IDLE.subLabel,
   ACTIVE: "Turvaseuranta ei ole käytössä",
   GRACE_PERIOD: "Kuittaa ulos vahvistaaksesi, että olet turvassa.",
-  ALERT_SENT: "Hätäilmoitus on lähetetty\nturvakontaktillesi.",
+  ALERT_SENT: "Hätäilmoitus on lähetetty turvakontaktillesi.",
 };
 
 function StateButtonGlow({
   status,
   children,
+  onPress,
+  onPressIn,
+  onPressOut,
 }: {
   status: "ACTIVE" | "GRACE_PERIOD" | "ALERT_SENT";
   children: React.ReactNode;
+  onPress?: () => void;
+  onPressIn?: () => void;
+  onPressOut?: () => void;
 }) {
   const bgToken =
     status === "ACTIVE"
@@ -81,11 +96,15 @@ function StateButtonGlow({
           className={`absolute -left-2 -top-2 h-64 w-40 rounded-button ${bgToken}/20`}
         />
       </View>
-      <View
+      <Pressable
+        onPress={onPress}
+        onPressIn={onPressIn}
+        onPressOut={onPressOut}
         className={`h-60 w-36 items-center justify-center rounded-button border-[1.5px] ${borderToken} ${bgToken} ${shadowToken}`}
+        style={{ overflow: "hidden" }}
       >
         {children}
-      </View>
+      </Pressable>
     </View>
   );
 }
@@ -162,6 +181,25 @@ export default function WorkScreen() {
     stopSession();
   };
 
+  const fillProgress = useSharedValue(0);
+  const fillAnimStyle = useAnimatedStyle(() => ({
+    height: fillProgress.value,
+  }));
+
+  const handleAlertPressIn = () => {
+    fillProgress.value = withTiming(
+      ALERT_BUTTON_HEIGHT,
+      { duration: LONG_PRESS_ALERT_CLEAR_MS },
+      (finished) => {
+        if (finished) runOnJS(handleAlertClearedLongPress)();
+      }
+    );
+  };
+
+  const handleAlertPressOut = () => {
+    fillProgress.value = withTiming(0, { duration: 200 });
+  };
+
   const cardBg =
     status === "ACTIVE"
       ? "bg-tint-active"
@@ -182,9 +220,9 @@ export default function WorkScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background-primary" edges={["top"]}>
-      <View className="flex-1 px-6">
+      <View className="flex-1 px-6 pt-[60px]">
         {/* Row: Kello (left) / Sää (right) */}
-        <View className="flex-row justify-between">
+        <View className="flex-row justify-between items-center">
           <View className="gap-2">
             <Text className="text-caption text-xs">Kello</Text>
             <Text className="text-primary text-4xl font-bold tracking-wide">
@@ -244,52 +282,56 @@ export default function WorkScreen() {
             )}
 
             {status === "GRACE_PERIOD" && (
-              <TouchableOpacity
+              <StateButtonGlow
+                status="GRACE_PERIOD"
                 onPress={handleGracePeriodSignOut}
-                activeOpacity={0.8}
-                className="w-full items-center justify-center"
-                accessibilityRole="button"
-                accessibilityLabel="Kuittaa ulos"
               >
-                <StateButtonGlow status="GRACE_PERIOD">
-                  <Text className="text-center text-base text-white">
-                    Kuittaa Ulos
-                  </Text>
-                </StateButtonGlow>
-              </TouchableOpacity>
+                <Text className="text-center text-base text-white">
+                  Kuittaa Ulos
+                </Text>
+              </StateButtonGlow>
             )}
 
             {status === "ALERT_SENT" && (
-              <TouchableOpacity
-                onLongPress={handleAlertClearedLongPress}
-                delayLongPress={LONG_PRESS_ALERT_CLEAR_MS}
-                activeOpacity={0.8}
-                className="w-full items-center justify-center"
-                accessibilityRole="button"
-                accessibilityLabel="Pidä pitkään nollataksesi"
+              <StateButtonGlow
+                status="ALERT_SENT"
+                onPressIn={handleAlertPressIn}
+                onPressOut={handleAlertPressOut}
               >
-                <StateButtonGlow status="ALERT_SENT">
-                  <Text className="text-center text-base text-white">
-                    Kuittaa Ulos
-                  </Text>
-                </StateButtonGlow>
-              </TouchableOpacity>
+                <Animated.View
+                  style={[
+                    {
+                      position: "absolute",
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      backgroundColor: "#E33636",
+                    },
+                    fillAnimStyle,
+                  ]}
+                />
+                <Text
+                  className="text-center text-base text-white"
+                  style={{ zIndex: 1 }}
+                >
+                  Kuittaa Ulos
+                </Text>
+              </StateButtonGlow>
             )}
           </View>
 
-          {/* Grace period footnote */}
-          {status === "GRACE_PERIOD" && (
-            <Text className="mt-8 text-center text-xs text-state-grace">
-              Hälytys lähetetään 15 minuutin kuluttua.
-            </Text>
-          )}
-
-          {/* Alert-sent footnote */}
-          {status === "ALERT_SENT" && (
-            <Text className="mt-8 text-center text-xs text-state-critical">
-              Peruuta painamalla painiketta pitkään
-            </Text>
-          )}
+          <View className="mt-8 h-8 items-center justify-center">
+            {status === "GRACE_PERIOD" && (
+              <Text className="text-center text-xs text-state-grace">
+                Hälytys lähetetään 15 minuutin kuluttua.
+              </Text>
+            )}
+            {status === "ALERT_SENT" && (
+              <Text className="text-center text-xs text-state-critical">
+                Peruuta painamalla painiketta pitkään
+              </Text>
+            )}
+          </View>
         </View>
 
         {/* Bottom row: Turvakontakti | Suunniteltu työaika */}

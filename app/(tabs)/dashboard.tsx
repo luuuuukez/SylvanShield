@@ -11,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAnimatedReaction, runOnJS } from "react-native-reanimated";
 import {
@@ -315,6 +316,7 @@ function ActiveWorkersChart() {
 }
 
 export default function DashboardScreen() {
+  const router = useRouter();
   const [selectedCategory, setSelectedCategory] =
     useState<DashboardCardCategory>(null);
 
@@ -364,6 +366,7 @@ export default function DashboardScreen() {
             <TouchableOpacity
               activeOpacity={0.7}
               className="flex-row items-center"
+              onPress={() => router.push("/live-map")}
             >
               <Text className="text-caption text-xs">Live kartta</Text>
               <Text className="text-caption ml-0.5 text-xs">›</Text>
