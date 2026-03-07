@@ -5,6 +5,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import {
   IconChevronRight,
   IconClock,
@@ -56,11 +57,12 @@ const STATUS_COLOR_CLASS: Record<HistoryStatus, string> = {
   warning: "text-status-warning",
 };
 
-function HistoryCard({ item }: { item: HistoryItem }) {
+function HistoryCard({ item, onPress }: { item: HistoryItem; onPress: () => void }) {
   const statusClass = STATUS_COLOR_CLASS[item.statusType];
   return (
     <TouchableOpacity
       activeOpacity={0.8}
+      onPress={onPress}
       className="min-h-28 flex-row rounded-2xl bg-history-card overflow-hidden p-4"
     >
       <View className="flex-1 gap-1 justify-center">
@@ -91,6 +93,7 @@ function HistoryCard({ item }: { item: HistoryItem }) {
 }
 
 export default function HistoryScreen() {
+  const router = useRouter();
   return (
     <SafeAreaView
       className="flex-1 bg-background-primary"
@@ -110,7 +113,11 @@ export default function HistoryScreen() {
         showsVerticalScrollIndicator={false}
       >
         {MOCK_HISTORY.map((item) => (
-          <HistoryCard key={item.id} item={item} />
+          <HistoryCard
+            key={item.id}
+            item={item}
+            onPress={() => router.push(`/history-details?id=${item.id}`)}
+          />
         ))}
       </ScrollView>
     </SafeAreaView>

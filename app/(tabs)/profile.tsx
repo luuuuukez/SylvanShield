@@ -5,6 +5,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import { IconChevronRight } from "../../src/components/icons";
 
 const MENU_ITEMS = [
@@ -42,6 +43,7 @@ function MenuRow({
 }
 
 export default function ProfileScreen() {
+  const router = useRouter();
   return (
     <SafeAreaView
       className="flex-1 bg-background-primary"
@@ -76,7 +78,10 @@ export default function ProfileScreen() {
               key={item.id}
               label={item.label}
               isFirst={index === 0}
-              onPress={() => {}}
+              onPress={() => {
+                if (item.id === "omat") router.push("/profile-edit");
+                if (item.id === "turva") router.push("/safe-contacts");
+              }}
             />
           ))}
         </View>

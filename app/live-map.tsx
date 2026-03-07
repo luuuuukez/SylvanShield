@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Image,
   Linking,
@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker } from "react-native-maps";
 import Svg, { Path } from "react-native-svg";
 import { IconBell, IconChevronRight, IconClose, IconPhone } from "../src/components/icons";
+import { ScreenHeader } from "../src/components/ScreenHeader";
 
 export type WorkerMapStatus = "normal" | "warning" | "alert";
 
@@ -342,6 +343,7 @@ export default function LiveMapScreen() {
   const [selectedCategory, setSelectedCategory] = useState<LiveMapCategory | null>(null);
   /** 当前在该类别中展示的工人下标 */
   const [categoryWorkerIndex, setCategoryWorkerIndex] = useState(0);
+  const markerPressedRef = useRef(false);
 
   const categoryWorkers = selectedCategory ? WORKERS_BY_CATEGORY[selectedCategory] : [];
   const currentFocusWorker =
@@ -436,19 +438,18 @@ export default function LiveMapScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background-primary" edges={["top"]}>
-      <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
-        <TouchableOpacity onPress={handleBack} className="p-2" hitSlop={8}>
-          <IconClose width={36} height={36} color="#404040" />
-        </TouchableOpacity>
-        <Text className="text-xl font-bold text-primary">Live Kartta</Text>
-        <View style={{ width: 40 }} />
-      </View>
+      <ScreenHeader title="Live Kartta" onClose={handleBack} />
 
       <View className="flex-1">
         <MapView
           style={{ flex: 1, width: "100%" }}
           initialRegion={INITIAL_REGION}
           showsUserLocation
+          onPress={() => {
+            if (markerPressedRef.current) return;
+            setSelectedWorker(null);
+            setSelectedCategory(null);
+          }}
         >
           {MOCK_WORKERS_MAP.map((worker) => (
             <Marker
@@ -458,9 +459,12 @@ export default function LiveMapScreen() {
                 longitude: worker.longitude,
               }}
               anchor={{ x: 0.5, y: 1 }}
-              title={worker.name}
-              description={STATUS_LABEL[worker.status]}
-              onPress={() => setSelectedWorker(worker)}
+              onPress={() => {
+                markerPressedRef.current = true;
+                setSelectedCategory(null);
+                setSelectedWorker(worker);
+                setTimeout(() => { markerPressedRef.current = false; }, 100);
+              }}
             >
               <WorkerPinMarker worker={worker} />
             </Marker>
@@ -471,15 +475,17 @@ export default function LiveMapScreen() {
       {/* 点击底部卡片后：上方显示该类别下的 focus 工人卡片 + 左右切换；total 用该类目统计数（如 Aktiivisena 为 12） */}
       {selectedCategory && currentFocusWorker && (
         <View className="absolute left-4 right-4 bottom-28" pointerEvents="box-none">
-          <FocusWorkerCard
-            worker={currentFocusWorker}
-            category={selectedCategory}
-            index={categoryWorkerIndex}
-            total={LIVE_MAP_STATS.find((s) => s.key === selectedCategory)?.value ?? categoryWorkers.length}
-            onCall={handleCategoryCall}
-            onPrev={handlePrevWorker}
-            onNext={handleNextWorker}
-          />
+          <TouchableOpacity activeOpacity={1} onPress={() => setSelectedCategory(null)}>
+            <FocusWorkerCard
+              worker={currentFocusWorker}
+              category={selectedCategory}
+              index={categoryWorkerIndex}
+              total={LIVE_MAP_STATS.find((s) => s.key === selectedCategory)?.value ?? categoryWorkers.length}
+              onCall={handleCategoryCall}
+              onPrev={handlePrevWorker}
+              onNext={handleNextWorker}
+            />
+          </TouchableOpacity>
         </View>
       )}
 
@@ -518,17 +524,18 @@ export default function LiveMapScreen() {
       {/* 点击地图 marker：沿用 Focus 卡片样式，无底部左右切换栏；电话按钮颜色按该员工状态 */}
       {selectedWorker && !selectedCategory && (
         <View className="absolute left-4 right-4 bottom-28" pointerEvents="box-none">
-          <FocusWorkerCard
-            worker={selectedWorker}
-            category={statusToCategory(selectedWorker.status)}
-            index={0}
-            total={1}
-            onCall={handleContact}
-            onPrev={() => {}}
-            onNext={() => {}}
-            hideNavBar
-            onClose={() => setSelectedWorker(null)}
-          />
+          <TouchableOpacity activeOpacity={1} onPress={() => setSelectedWorker(null)}>
+            <FocusWorkerCard
+              worker={selectedWorker}
+              category={statusToCategory(selectedWorker.status)}
+              index={0}
+              total={1}
+              onCall={handleContact}
+              onPrev={() => {}}
+              onNext={() => {}}
+              hideNavBar
+            />
+          </TouchableOpacity>
         </View>
       )}
     </SafeAreaView>
