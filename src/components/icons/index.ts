@@ -13,3 +13,5 @@ export { IconAlert } from "./IconAlert";
 export { IconChevronRight } from "./IconChevronRight";
 export { IconClock } from "./IconClock";
 export { IconSliders } from "./IconSliders";
+export { IconClose } from "./IconClose";
+export { IconPhone } from "./IconPhone";
