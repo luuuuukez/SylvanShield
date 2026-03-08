@@ -1,3 +1,4 @@
+import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { IconClose, IconChevronRight } from "./icons";
 
@@ -5,9 +6,10 @@ type ScreenHeaderProps = {
   title: string;
   onClose?: () => void;
   onBack?: () => void;
+  rightAction?: React.ReactNode;
 };
 
-export function ScreenHeader({ title, onClose, onBack }: ScreenHeaderProps) {
+export function ScreenHeader({ title, onClose, onBack, rightAction }: ScreenHeaderProps) {
   return (
     <View className="flex-row items-center justify-between px-4 py-1 border-b border-gray-200">
       <TouchableOpacity
@@ -24,7 +26,11 @@ export function ScreenHeader({ title, onClose, onBack }: ScreenHeaderProps) {
         )}
       </TouchableOpacity>
       <Text className="text-xl font-bold text-primary">{title}</Text>
-      <View style={{ width: 40 }} />
+      {rightAction ? (
+        <View style={{ width: 40, alignItems: "center" }}>{rightAction}</View>
+      ) : (
+        <View style={{ width: 40 }} />
+      )}
     </View>
   );
 }

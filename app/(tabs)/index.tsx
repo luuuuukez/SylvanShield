@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Image,
   Modal,
   Pressable,
   Text,
@@ -13,19 +14,28 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as Location from "expo-location";
 import {
   useSessionStore,
   SESSION_STATUS_CONFIG,
+  DB_TO_STORE,
   sendEmergencyAlert,
   sendSafeSignOutNotification,
   sendAlertClearedNotification,
 } from "../../src/store/useSessionStore";
+import { supabase } from "../../src/lib/supabase";
 import {
   IconAlert,
   IconBell,
-  IconCloud,
+  IconWind,
   IconLocationPin,
   IconSun,
+  IconPartlyCloudy,
+  IconCloudy,
+  IconRain,
+  IconThunderstorm,
+  IconSnow,
+  IconFog,
 } from "../../src/components/icons";
 
 /** Shift-end reminder duration in ACTIVE before showing modal (test: 5s). */
@@ -36,6 +46,64 @@ const GRACE_PERIOD_MS = 5000;
 const LONG_PRESS_ALERT_CLEAR_MS = 3000;
 /** Button height (h-60 = 240px) used for fill animation. */
 const ALERT_BUTTON_HEIGHT = 240;
+
+function getSecondsRemaining(endHour: number, endMin: number): number {
+  const now = new Date();
+  const end = new Date();
+  end.setHours(endHour, endMin, 0, 0);
+  return Math.floor((end.getTime() - now.getTime()) / 1000);
+}
+
+/** Parse a Postgres time string "HH:MM:SS" → { hour, min, label "HH:MM" } */
+function parseTime(t: string): { hour: number; min: number; label: string } {
+  const [h, m] = t.split(":").map(Number);
+  return { hour: h, min: m, label: `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}` };
+}
+
+function formatCountdown(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
+}
+
+type WeatherKey = "sunny" | "partly_cloudy" | "cloudy" | "rain" | "thunderstorm" | "snow" | "fog";
+
+type WeatherData = {
+  condition: WeatherKey;
+  label: string;
+  temp: number;
+  windSpeed: number;
+  windDir: string;
+};
+
+function weatherCodeToCondition(code: number): { condition: WeatherKey; label: string } {
+  if (code === 0) return { condition: "sunny", label: "Selkeää" };
+  if (code === 1 || code === 2) return { condition: "partly_cloudy", label: "Puolipilvistä" };
+  if (code === 3) return { condition: "cloudy", label: "Pilvistä" };
+  if ([45, 48].includes(code)) return { condition: "fog", label: "Sumuista" };
+  if ([51, 53, 55, 61, 63, 65].includes(code)) return { condition: "rain", label: "Sadetta" };
+  if ([71, 73, 75, 77].includes(code)) return { condition: "snow", label: "Lumisadetta" };
+  if ([95, 96, 99].includes(code)) return { condition: "thunderstorm", label: "Ukkosta" };
+  return { condition: "cloudy", label: "Pilvistä" };
+}
+
+function degreesToCompass(deg: number): string {
+  const dirs = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  return dirs[Math.round(deg / 45) % 8];
+}
+
+function WeatherIcon({ condition }: { condition: WeatherKey }) {
+  switch (condition) {
+    case "sunny":         return <IconSun color="#EDA36E" />;
+    case "partly_cloudy": return <IconPartlyCloudy />;
+    case "cloudy":        return <IconCloudy />;
+    case "rain":          return <IconRain />;
+    case "thunderstorm":  return <IconThunderstorm />;
+    case "snow":          return <IconSnow />;
+    case "fog":           return <IconFog />;
+  }
+}
 
 const CARD_TITLES: Record<string, string> = {
   IDLE: SESSION_STATUS_CONFIG.IDLE.label,
@@ -116,6 +184,7 @@ export default function WorkScreen() {
     stopSession,
     transitionToGracePeriod,
     transitionToAlertSent,
+    restoreSession,
   } = useSessionStore();
   const [showShiftEndModal, setShowShiftEndModal] = useState(false);
 
@@ -181,6 +250,118 @@ export default function WorkScreen() {
     stopSession();
   };
 
+  type SafeContact = { name: string | null; avatar_url: string | null };
+  const [safeContact, setSafeContact] = useState<SafeContact | null>(null);
+
+  type Schedule = { startLabel: string; endLabel: string; endHour: number; endMin: number };
+  const [schedule, setSchedule] = useState<Schedule | null>(null);
+  const [scheduleLoading, setScheduleLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchUserData() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setScheduleLoading(false); return; }
+
+      const [contactRes, profileRes] = await Promise.all([
+        supabase
+          .from("safety_contacts")
+          .select("name, avatar_url")
+          .eq("user_id", user.id)
+          .eq("is_active", true)
+          .single(),
+        supabase
+          .from("profiles")
+          .select("planned_start, planned_end")
+          .eq("id", user.id)
+          .single(),
+      ]);
+
+      if (contactRes.data) setSafeContact(contactRes.data);
+
+      // Restore any in-progress session started today (e.g. app closed mid-session)
+      const todayStart = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
+      const { data: existingSession } = await supabase
+        .from("work_sessions")
+        .select("id, status")
+        .eq("user_id", user.id)
+        .in("status", ["active", "grace_period", "alert_sent"])
+        .gte("start_time", todayStart)
+        .order("start_time", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (existingSession) {
+        const mapped = DB_TO_STORE[existingSession.status];
+        if (mapped) restoreSession(existingSession.id, mapped);
+      }
+
+      if (profileRes.data?.planned_start && profileRes.data?.planned_end) {
+        const start = parseTime(profileRes.data.planned_start);
+        const end = parseTime(profileRes.data.planned_end);
+        setSchedule({ startLabel: start.label, endLabel: end.label, endHour: end.hour, endMin: end.min });
+      }
+      setScheduleLoading(false);
+    }
+    fetchUserData();
+  }, [restoreSession]);
+
+  const endHour = schedule?.endHour ?? 17;
+  const endMin = schedule?.endMin ?? 0;
+
+  const [secondsLeft, setSecondsLeft] = useState(() => getSecondsRemaining(endHour, endMin));
+
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [weatherLoading, setWeatherLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchWeather() {
+      try {
+        const { status: perm } = await Location.requestForegroundPermissionsAsync();
+        if (perm !== "granted") { setWeatherLoading(false); return; }
+        const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low });
+        const { latitude: lat, longitude: lon } = pos.coords;
+        const res = await fetch(
+          `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,windspeed_10m,winddirection_10m,weathercode`
+        );
+        const json = await res.json();
+        const { temperature_2m, windspeed_10m, winddirection_10m, weathercode } = json.current;
+        const { condition, label } = weatherCodeToCondition(weathercode);
+        setWeather({
+          condition,
+          label,
+          temp: Math.round(temperature_2m),
+          windSpeed: Math.round(windspeed_10m),
+          windDir: degreesToCompass(winddirection_10m),
+        });
+      } catch {
+        // fail silently, weather stays null
+      } finally {
+        setWeatherLoading(false);
+      }
+    }
+    fetchWeather();
+  }, []);
+
+  const [clockTime, setClockTime] = useState(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  });
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = new Date();
+      setClockTime(`${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`);
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (status === "IDLE") return;
+    setSecondsLeft(getSecondsRemaining(endHour, endMin));
+    const id = setInterval(() => setSecondsLeft(getSecondsRemaining(endHour, endMin)), 1000);
+    return () => clearInterval(id);
+  }, [status, endHour, endMin]);
+
   const fillProgress = useSharedValue(0);
   const fillAnimStyle = useAnimatedStyle(() => ({
     height: fillProgress.value,
@@ -226,21 +407,25 @@ export default function WorkScreen() {
           <View className="gap-2">
             <Text className="text-caption text-xs">Kello</Text>
             <Text className="text-primary text-4xl font-bold tracking-wide">
-              07:56
+              {clockTime}
             </Text>
           </View>
           <View className="gap-2">
             <Text className="text-caption text-xs">Sää</Text>
-            <View className="gap-1">
-              <View className="flex-row items-center gap-1">
-                <IconSun color="#EDA36E" />
-                <Text className="text-primary text-base">-20°C</Text>
+            {weatherLoading ? (
+              <Text className="text-primary text-base">Ladataan...</Text>
+            ) : weather ? (
+              <View className="gap-1">
+                <View className="flex-row items-center gap-1">
+                  <WeatherIcon condition={weather.condition} />
+                  <Text className="text-primary text-base">{weather.temp}°C</Text>
+                </View>
+                <View className="flex-row items-center gap-1">
+                  <IconWind color="#8AA2D7" />
+                  <Text className="text-primary text-base">{weather.windSpeed} km/h {weather.windDir}</Text>
+                </View>
               </View>
-              <View className="flex-row items-center gap-1">
-                <IconCloud color="#8AA2D7" />
-                <Text className="text-primary text-base">18 km/h NW</Text>
-              </View>
-            </View>
+            ) : null}
           </View>
         </View>
 
@@ -337,16 +522,66 @@ export default function WorkScreen() {
         {/* Bottom row: Turvakontakti | Suunniteltu työaika */}
         <View className="mt-8 flex-row justify-between gap-4">
           <View className="flex-1 gap-2">
-            <Text className="text-caption text-xs">Turvakontakti</Text>
+            <Text className="text-caption text-xs">Turvahenkilö</Text>
             <View className="flex-row items-center gap-1">
-              <View className="h-7 w-7 rounded-full bg-primary" />
-              <Text className="text-base text-primary">Anna Svensson</Text>
+              {safeContact?.avatar_url ? (
+                <Image
+                  source={{ uri: safeContact.avatar_url }}
+                  style={{ width: 28, height: 28, borderRadius: 14 }}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="h-7 w-7 rounded-full bg-background-card" />
+              )}
+              <Text className="text-base text-primary">
+                {safeContact?.name ?? "Ei asetettu"}
+              </Text>
               <IconBell bg="#333333" fg="white" />
             </View>
           </View>
           <View className="flex-1 gap-2 items-end">
-            <Text className="text-caption text-xs">Suunniteltu työaika</Text>
-            <Text className="text-xl text-primary">8:00 - 17:00</Text>
+            {status === "IDLE" ? (
+              <>
+                <Text className="text-caption text-xs">Suunniteltu työaika</Text>
+                <Text className="text-xl text-primary">
+                  {scheduleLoading
+                    ? "Ladataan..."
+                    : schedule
+                      ? `${schedule.startLabel} - ${schedule.endLabel}`
+                      : "—"}
+                </Text>
+              </>
+            ) : (
+              <>
+                <Text className="text-caption text-xs">Aikaa jäljellä</Text>
+                {secondsLeft > 0 ? (
+                  <Text
+                    className={`text-xl font-bold ${
+                      status === "ACTIVE"
+                        ? "text-state-active"
+                        : status === "GRACE_PERIOD"
+                          ? "text-state-grace"
+                          : "text-state-critical"
+                    }`}
+                    style={{ fontVariant: ["tabular-nums"] }}
+                  >
+                    {formatCountdown(secondsLeft)}
+                  </Text>
+                ) : (
+                  <Text
+                    className={`text-xl font-bold ${
+                      status === "ACTIVE"
+                        ? "text-state-active"
+                        : status === "GRACE_PERIOD"
+                          ? "text-state-grace"
+                          : "text-state-critical"
+                    }`}
+                  >
+                    Aika ylitetty
+                  </Text>
+                )}
+              </>
+            )}
           </View>
         </View>
       </View>

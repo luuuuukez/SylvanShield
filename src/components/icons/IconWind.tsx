@@ -1,7 +1,7 @@
 import Svg, { Path } from "react-native-svg";
 
 type Props = { width?: number; height?: number; color?: string };
-export function IconCloud({ width = 14, height = 14, color = "#8AA2D7" }: Props) {
+export function IconWind({ width = 14, height = 14, color = "#8AA2D7" }: Props) {
   return (
     <Svg width={width} height={height} viewBox="0 0 14 14" fill="none">
       <Path

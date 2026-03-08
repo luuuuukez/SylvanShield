@@ -45,6 +45,7 @@ module.exports = {
         "chevron-muted": "#B0B3BA",
         "profile-subtitle": "#71717A",
         separator: "#E5E5E5",
+        "brand-primary": "#FFAE23",
       },
       borderRadius: {
         card: "20px",

@@ -123,6 +123,7 @@ All tokens are defined in `tailwind.config.js`. Never hardcode hex values — al
 | `chart-grid` | #E5E5E5 | Chart dashed grid lines |
 | `chevron-muted` | #B0B3BA | Card chevrons |
 | `separator` | #E5E5E5 | List item dividers in profile menu |
+| `brand-primary` | #FFAE23 | Primary brand accent color (e.g. toggle active state) |
 
 ### Colors — Map Pin Status
 

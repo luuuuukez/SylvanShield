@@ -1,10 +1,14 @@
-import React from "react";
-import { Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { ActivityIndicator, Image, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import MapView, { Marker } from "react-native-maps";
+import * as Location from "expo-location";
 import { IconLocationPin } from "../src/components/icons";
 import { ScreenHeader } from "../src/components/ScreenHeader";
+import { supabase } from "../src/lib/supabase";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 type DotColor = "black" | "orange" | "red";
 
@@ -15,88 +19,113 @@ type TimelineEvent = {
   dotColor: DotColor;
 };
 
-type HistoryDetail = {
+type AlertRow = {
+  id: string;
+  triggered_at: string | null;
+  reason: string | null;
+  status: string | null;
+};
+
+type SafetyContact = {
+  name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+};
+
+type SessionDetail = {
   id: string;
   status: string;
-  statusType: "safe" | "alert" | "warning";
-  location: string;
-  date: string;
-  estimatedHours: string;
-  actualHours: string;
-  safetyContact: { name: string; phone: string; avatar?: string };
-  timeline: TimelineEvent[];
-  lastLocation: { latitude: number; longitude: number };
+  start_time: string | null;
+  expected_end_time: string | null;
+  actual_end_time: string | null;
+  last_known_latitude: number | null;
+  last_known_longitude: number | null;
+  safety_contact_id: string | null;
+  alerts: AlertRow[];
 };
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function formatHM(iso: string): string {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
+function formatFullDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("fi-FI", {
+    weekday: "short",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatDuration(startIso: string, endIso: string): string {
+  const ms = new Date(endIso).getTime() - new Date(startIso).getTime();
+  const totalMin = Math.round(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return m === 0 ? `${h}h` : `${h}h ${m}min`;
+}
+
+function getStatusInfo(session: SessionDetail): { label: string; colorClass: string } {
+  if (session.status === "completed") {
+    if (session.alerts.length > 0) {
+      return { label: "Myöhässä – ratkaistu", colorClass: "text-labels-primary" };
+    }
+    return { label: "Kuitannut ulos turvallisesti", colorClass: "text-labels-primary" };
+  }
+  if (session.status === "alert_sent") {
+    return { label: "Hälytys lähetetty", colorClass: "text-state-critical" };
+  }
+  if (session.status === "grace_period") {
+    return { label: "Myöhässä – kesken", colorClass: "text-state-grace" };
+  }
+  return { label: "Käynnissä", colorClass: "text-state-active" };
+}
+
+function buildTimeline(session: SessionDetail): TimelineEvent[] {
+  const events: TimelineEvent[] = [];
+
+  if (session.start_time) {
+    events.push({ time: formatHM(session.start_time), label: "Työvuoro aloitettu", dotColor: "black" });
+  }
+
+  if (session.expected_end_time) {
+    events.push({ time: formatHM(session.expected_end_time), label: "Suunniteltu lopetusaika", dotColor: "black" });
+  }
+
+  if (session.alerts.length > 0) {
+    if (session.expected_end_time) {
+      events.push({ time: formatHM(session.expected_end_time), label: "Armonaikajakso alkanut", dotColor: "orange" });
+    }
+    const alert = session.alerts[0];
+    if (alert.triggered_at) {
+      events.push({ time: formatHM(alert.triggered_at), label: "Hätäilmoitus lähetetty", dotColor: "red" });
+    }
+  }
+
+  if (session.actual_end_time) {
+    const hadAlert = session.alerts.length > 0;
+    events.push({
+      time: formatHM(session.actual_end_time),
+      label: hadAlert ? "Hälytys kumottu" : "Kuittaus ulos",
+      subtitle: hadAlert
+        ? "Työntekijä vahvisti turvallisuuden peruuttamalla hälytyksen"
+        : undefined,
+      dotColor: "black",
+    });
+  }
+
+  return events;
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
 
 const DOT_BG: Record<DotColor, string> = {
   black: "#333333",
   orange: "#FA8B46",
   red: "#EF4444",
-};
-
-const STATUS_TEXT_CLASS: Record<HistoryDetail["statusType"], string> = {
-  safe: "text-status-safe",
-  alert: "text-alert",
-  warning: "text-status-warning",
-};
-
-const MOCK_DETAILS: Record<string, HistoryDetail> = {
-  "1": {
-    id: "1",
-    status: "Kuitannut ulos turvallisesti",
-    statusType: "safe",
-    location: "Kuhasalo",
-    date: "ma, syyskuu 12, 2026",
-    estimatedHours: "8h",
-    actualHours: "8h",
-    safetyContact: { name: "Anna Svensson", phone: "+358 451264429", avatar: "https://placehold.co/44x44" },
-    timeline: [
-      { time: "08:00", label: "Työvuoro aloitettu", dotColor: "black" },
-      { time: "16:00", label: "Saavutettu aika", dotColor: "black" },
-      { time: "16:00", label: "Kuittaus ulos", dotColor: "black" },
-    ],
-    lastLocation: { latitude: 60.1699, longitude: 24.9384 },
-  },
-  "2": {
-    id: "2",
-    status: "Myöhässä – ratkaistu",
-    statusType: "alert",
-    location: "Kuhasalo",
-    date: "pe, syyskuu 9, 2026",
-    estimatedHours: "8h",
-    actualHours: "8h 14m",
-    safetyContact: { name: "Anna Svensson", phone: "+358 451264429", avatar: "https://placehold.co/44x44" },
-    timeline: [
-      { time: "07:29", label: "Työvuoro aloitettu", dotColor: "black" },
-      { time: "16:00", label: "Saavutettu aika", dotColor: "black" },
-      { time: "16:01", label: "Armonaikajakso alkanut", dotColor: "orange" },
-      { time: "16:15", label: "Hätäilmoitus lähetetty", dotColor: "red" },
-      {
-        time: "16:15",
-        label: "Hälytys kumottu",
-        subtitle: "Työntekijä vahvisti turvallisuuden peruuttamalla hälytyksen",
-        dotColor: "black",
-      },
-    ],
-    lastLocation: { latitude: 60.168, longitude: 24.935 },
-  },
-  "3": {
-    id: "3",
-    status: "Hälytys lähetetty",
-    statusType: "warning",
-    location: "Kuhasalo",
-    date: "to, syyskuu 8, 2026",
-    estimatedHours: "8h",
-    actualHours: "9h 02m",
-    safetyContact: { name: "Anna Svensson", phone: "+358 451264429", avatar: "https://placehold.co/44x44" },
-    timeline: [
-      { time: "08:00", label: "Työvuoro aloitettu", dotColor: "black" },
-      { time: "16:00", label: "Saavutettu aika", dotColor: "black" },
-      { time: "16:01", label: "Armonaikajakso alkanut", dotColor: "orange" },
-      { time: "16:15", label: "Hätäilmoitus lähetetty", dotColor: "red" },
-    ],
-    lastLocation: { latitude: 60.171, longitude: 24.94 },
-  },
 };
 
 function Timeline({ events }: { events: TimelineEvent[] }) {
@@ -159,18 +188,124 @@ function Timeline({ events }: { events: TimelineEvent[] }) {
   );
 }
 
+// ── Screen ─────────────────────────────────────────────────────────────────────
+
 export default function HistoryDetailsScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const detail = MOCK_DETAILS[id ?? "2"] ?? MOCK_DETAILS["2"];
 
-  const statusClass = STATUS_TEXT_CLASS[detail.statusType];
-  const hoursChanged = detail.actualHours !== detail.estimatedHours;
+  const [session, setSession] = useState<SessionDetail | null>(null);
+  const [contact, setContact] = useState<SafetyContact | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [locationName, setLocationName] = useState<string>("Tuntematon sijainti");
+
+  useEffect(() => {
+    if (!id) { setLoading(false); return; }
+    async function fetchSession() {
+      const { data, error } = await supabase
+        .from("work_sessions")
+        .select(`
+          *,
+          alerts(id, triggered_at, reason, status),
+          safety_contacts!safety_contact_id(name, phone, avatar_url)
+        `)
+        .eq("id", id)
+        .single();
+
+      console.log("[history-details] error:", error);
+      console.log("[history-details] safety_contact_id:", (data as any)?.safety_contact_id);
+      console.log("[history-details] safety_contacts key:", JSON.stringify((data as any)?.safety_contacts));
+      console.log("[history-details] all keys:", data ? Object.keys(data) : null);
+
+      if (data) {
+        type RawSession = SessionDetail & { safety_contacts?: SafetyContact | SafetyContact[] | null };
+        const raw = data as unknown as RawSession;
+        setSession(raw);
+
+        const contactRaw = raw.safety_contacts;
+        const joined = Array.isArray(contactRaw) ? contactRaw[0] : contactRaw;
+        console.log("[history-details] joined (after array unwrap):", joined);
+
+        if (joined?.name) {
+          setContact(joined);
+        } else if (raw.safety_contact_id) {
+          // Join returned null — fall back to a direct fetch (e.g. RLS blocked the join)
+          console.log("[history-details] join empty, falling back to direct fetch for id:", raw.safety_contact_id);
+          const { data: fallback, error: fbErr } = await supabase
+            .from("safety_contacts")
+            .select("name, phone, avatar_url")
+            .eq("id", raw.safety_contact_id)
+            .single();
+          console.log("[history-details] fallback result:", fallback, "error:", fbErr);
+          if (fallback) setContact(fallback as SafetyContact);
+        }
+
+        const { last_known_latitude: lat, last_known_longitude: lon } = raw;
+        if (lat != null && lon != null) {
+          try {
+            const [result] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lon });
+            setLocationName(result?.district ?? "Tuntematon sijainti");
+          } catch {
+            setLocationName("Tuntematon sijainti");
+          }
+        }
+      }
+      setLoading(false);
+    }
+    fetchSession();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <SafeAreaView className="flex-1 bg-background-primary" edges={["top"]}>
+        <ScreenHeader title="Historia" onClose={() => router.back()} />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!session) {
+    return (
+      <SafeAreaView className="flex-1 bg-background-primary" edges={["top"]}>
+        <ScreenHeader title="Historia" onClose={() => router.back()} />
+        <View className="flex-1 items-center justify-center">
+          <Text className="text-caption text-base">Työvuoroa ei löydy</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const { label: statusLabel, colorClass: statusClass } = getStatusInfo(session);
+  const timeline = buildTimeline(session);
+
+  const estimatedHours =
+    session.start_time && session.expected_end_time
+      ? formatDuration(session.start_time, session.expected_end_time)
+      : "—";
+  const actualHours =
+    session.start_time && session.actual_end_time
+      ? formatDuration(session.start_time, session.actual_end_time)
+      : "—";
+  const hoursChanged = actualHours !== estimatedHours && actualHours !== "—";
+
+  const dateStr = session.start_time ? formatFullDate(session.start_time) : "—";
+
+  const hasLocation =
+    session.last_known_latitude != null && session.last_known_longitude != null;
+  const mapRegion = hasLocation
+    ? {
+        latitude: session.last_known_latitude!,
+        longitude: session.last_known_longitude!,
+        latitudeDelta: 0.005,
+        longitudeDelta: 0.005,
+      }
+    : null;
 
   return (
     <SafeAreaView className="flex-1 bg-background-primary" edges={["top"]}>
-      {/* Header */}
-      <ScreenHeader title="Historia" onClose={() => router.back()} />
+      <ScreenHeader title="Tiedot" onClose={() => router.back()} />
 
       <ScrollView
         className="flex-1"
@@ -179,17 +314,21 @@ export default function HistoryDetailsScreen() {
       >
         {/* Status */}
         <Text className={`text-xl font-normal leading-6 mb-3 ${statusClass}`}>
-          {detail.status}
+          {statusLabel}
         </Text>
 
         {/* Location + date row */}
         <View className="flex-row items-center gap-3 mb-6">
-          <View className="flex-row items-center gap-1">
-            <IconLocationPin width={16} height={16} color="#333333" />
-            <Text className="text-base text-primary">{detail.location}</Text>
-          </View>
-          <View style={{ width: 1, height: 14, backgroundColor: "#B0B3BA" }} />
-          <Text className="text-base text-primary">{detail.date}</Text>
+          {hasLocation && (
+            <>
+              <View className="flex-row items-center gap-1">
+                <IconLocationPin width={16} height={16} color="#333333" />
+                <Text className="text-base text-primary">{locationName}</Text>
+              </View>
+              <View style={{ width: 1, height: 14, backgroundColor: "#B0B3BA" }} />
+            </>
+          )}
+          <Text className="text-base text-primary">{dateStr}</Text>
         </View>
 
         {/* Timeline card */}
@@ -206,26 +345,23 @@ export default function HistoryDetailsScreen() {
           {/* Estimated / actual hours */}
           <View className="flex-row items-center gap-2 mb-6">
             <Text className="text-base text-labels-primary">Arvioitu / Todellinen työaika:</Text>
-            <Text className="text-base text-labels-primary">{detail.estimatedHours}</Text>
+            <Text className="text-base text-labels-primary">{estimatedHours}</Text>
             <View style={{ width: 1, height: 14, backgroundColor: "#B0B3BA", transform: [{ rotate: "15deg" }] }} />
             <Text className={`text-base ${hoursChanged ? "text-alert" : "text-labels-primary"}`}>
-              {detail.actualHours}
+              {actualHours}
             </Text>
           </View>
 
           {/* Timeline */}
-          <Timeline events={detail.timeline} />
+          <Timeline events={timeline} />
         </View>
 
         {/* Safety contact */}
         <Text className="text-xs text-caption leading-4 mb-2">Nykyinen Turvakontakti</Text>
-        <View
-          className="rounded-2xl bg-background-card overflow-hidden"
-          style={{ height: 64 }}
-        >
-          {detail.safetyContact.avatar && (
+        <View className="rounded-2xl bg-background-card overflow-hidden" style={{ height: 64 }}>
+          {contact?.avatar_url ? (
             <Image
-              source={{ uri: detail.safetyContact.avatar }}
+              source={{ uri: contact.avatar_url }}
               style={{
                 position: "absolute",
                 left: 16,
@@ -236,43 +372,58 @@ export default function HistoryDetailsScreen() {
               }}
               resizeMode="cover"
             />
+          ) : (
+            <View
+              style={{
+                position: "absolute",
+                left: 16,
+                top: 10,
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: "#E5E5E5",
+              }}
+            />
           )}
           <View style={{ position: "absolute", left: 72, top: 12 }}>
             <Text style={{ fontSize: 16, lineHeight: 20, color: "#27272A" }}>
-              {detail.safetyContact.name}
+              {contact?.name ?? "—"}
             </Text>
             <Text style={{ fontSize: 12, lineHeight: 16, color: "#9CA3AF", marginTop: 2 }}>
-              {detail.safetyContact.phone}
+              {contact?.phone ?? ""}
             </Text>
           </View>
         </View>
 
         {/* Last location snapshot */}
         <Text className="text-xs text-caption leading-4 mt-6 mb-2">Lopullinen sijainti</Text>
-        <View
-          className="rounded-card overflow-hidden"
-          style={{ height: 112 }}
-        >
-          <MapView
-            style={{ flex: 1 }}
-            initialRegion={{
-              latitude: detail.lastLocation.latitude,
-              longitude: detail.lastLocation.longitude,
-              latitudeDelta: 0.005,
-              longitudeDelta: 0.005,
-            }}
-            scrollEnabled={false}
-            zoomEnabled={false}
-            pitchEnabled={false}
-            rotateEnabled={false}
-            pointerEvents="none"
-          >
-            <Marker
-              coordinate={detail.lastLocation}
-              anchor={{ x: 0.5, y: 1 }}
-            />
-          </MapView>
-        </View>
+        {mapRegion ? (
+          <>
+            <View className="rounded-card overflow-hidden" style={{ height: 112 }}>
+              <MapView
+                style={{ flex: 1 }}
+                initialRegion={mapRegion}
+                scrollEnabled={false}
+                zoomEnabled={false}
+                pitchEnabled={false}
+                rotateEnabled={false}
+                pointerEvents="none"
+              >
+                <Marker
+                  coordinate={{
+                    latitude: session.last_known_latitude!,
+                    longitude: session.last_known_longitude!,
+                  }}
+                  anchor={{ x: 0.5, y: 1 }}
+                />
+              </MapView>
+            </View>
+          </>
+        ) : (
+          <View className="rounded-card bg-background-card items-center justify-center" style={{ height: 112 }}>
+            <Text className="text-caption text-sm">Sijaintitietoja ei saatavilla</Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

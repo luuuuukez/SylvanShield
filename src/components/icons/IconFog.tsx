@@ -1,0 +1,22 @@
+import Svg, { Path } from "react-native-svg";
+
+type Props = { width?: number; height?: number; color?: string };
+
+export function IconFog({ width = 14, height = 14, color = "#A4AFBF" }: Props) {
+  return (
+    <Svg width={width} height={height} viewBox="0 0 14 14" fill="none">
+      {/* Fog lines */}
+      <Path d="M6.5625 10.5H3.9375" stroke={color} strokeWidth={1.17} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M10.0625 10.5H8.75" stroke={color} strokeWidth={1.17} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M8.75 12.25H5.6875" stroke={color} strokeWidth={1.17} strokeLinecap="round" strokeLinejoin="round" />
+      {/* Cloud */}
+      <Path
+        d="M4.81255 5.03125C4.81255 4.29575 5.03066 3.57677 5.43928 2.96522C5.8479 2.35368 6.42869 1.87704 7.1082 1.59557C7.78771 1.31411 8.53543 1.24047 9.2568 1.38396C9.97816 1.52745 10.6408 1.88162 11.1609 2.4017C11.6809 2.92177 12.0351 3.58439 12.1786 4.30576C12.3221 5.02713 12.2484 5.77484 11.967 6.45436C11.6855 7.13387 11.2089 7.71466 10.5973 8.12328C9.98579 8.5319 9.2668 8.75 8.5313 8.75H4.1563C3.80693 8.74971 3.46181 8.67334 3.14492 8.5262C2.82804 8.37905 2.547 8.16467 2.32134 7.89795C2.09568 7.63123 1.93081 7.31857 1.83818 6.98169C1.74555 6.64482 1.7274 6.29181 1.78497 5.94721C1.84255 5.60261 1.97448 5.27468 2.17159 4.98622C2.36869 4.69775 2.62626 4.45567 2.92637 4.27679C3.22648 4.09792 3.56195 3.98654 3.90945 3.95041C4.25696 3.91427 4.60816 3.95424 4.93865 4.06754"
+        stroke={color}
+        strokeWidth={1.17}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
