@@ -128,7 +128,7 @@ export default function HistoryScreen() {
         .eq("user_id", user.id)
         .order("start_time", { ascending: false });
 
-      if (data) setSessions(data as HistorySession[]);
+      if (data) setSessions(data as unknown as HistorySession[]);
       setLoading(false);
     }
     fetchSessions();
