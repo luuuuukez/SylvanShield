@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Image,
   Text,
   TouchableOpacity,
@@ -7,6 +9,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { IconChevronRight } from "../../src/components/icons";
+import { supabase } from "../../src/lib/supabase";
+
+type Profile = {
+  name: string | null;
+  phone: string | null;
+  avatar_url: string | null;
+  role: string;
+};
 
 const MENU_ITEMS = [
   { id: "omat", label: "Omat tiedot" },
@@ -44,6 +54,30 @@ function MenuRow({
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchProfile() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from("profiles")
+        .select("name, phone, avatar_url, role")
+        .eq("id", user.id)
+        .single();
+
+      if (data) setProfile(data);
+      setLoading(false);
+    }
+    fetchProfile();
+  }, []);
+
+  const avatarUri = profile?.avatar_url ?? "https://placehold.co/72x72";
+  const displayName = profile?.name ?? "—";
+  const displayRole = profile?.role === "supervisor" ? "Valvoja" : "Työntekijä";
+
   return (
     <SafeAreaView
       className="flex-1 bg-background-primary"
@@ -56,17 +90,23 @@ export default function ProfileScreen() {
       </View>
 
       <View className="px-6 mt-8 flex-row items-center gap-4">
-        <Image
-          source={{ uri: "https://placehold.co/72x72" }}
-          className="w-16 h-16 rounded-full bg-background-card"
-          resizeMode="cover"
-        />
+        {loading ? (
+          <View className="w-16 h-16 rounded-full bg-background-card items-center justify-center">
+            <ActivityIndicator size="small" color="#9CA3AF" />
+          </View>
+        ) : (
+          <Image
+            source={{ uri: avatarUri }}
+            className="w-16 h-16 rounded-full bg-background-card"
+            resizeMode="cover"
+          />
+        )}
         <View className="flex-1 gap-1">
           <Text className="text-xl font-normal leading-6 text-primary">
-            Markus Selin
+            {loading ? "Ladataan..." : displayName}
           </Text>
           <Text className="text-base font-normal leading-5 text-profile-subtitle">
-            A3123 - Rooli
+            {loading ? "" : displayRole}
           </Text>
         </View>
       </View>
@@ -81,6 +121,7 @@ export default function ProfileScreen() {
               onPress={() => {
                 if (item.id === "omat") router.push("/profile-edit");
                 if (item.id === "turva") router.push("/safe-contacts");
+                if (item.id === "asetukset") router.push("/settings");
               }}
             />
           ))}

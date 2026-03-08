@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Image,
   Linking,
@@ -13,94 +13,47 @@ import MapView, { Marker } from "react-native-maps";
 import Svg, { Path } from "react-native-svg";
 import { IconBell, IconChevronRight, IconClose, IconPhone } from "../src/components/icons";
 import { ScreenHeader } from "../src/components/ScreenHeader";
+import { supabase } from "../src/lib/supabase";
 
 export type WorkerMapStatus = "normal" | "warning" | "alert";
-
-/** 底部卡片对应的类别 key */
 export type LiveMapCategory = "alert" | "delayed" | "active";
 
 export type WorkerOnMap = {
   id: string;
+  sessionId: string;
   name: string;
   workerId: string;
+  employeeId?: string;
+  team?: string;
   status: WorkerMapStatus;
   latitude: number;
   longitude: number;
   avatar?: string;
-  team?: string;
-  /** 安全联系人，用于 focus 卡片 */
   safetyContact?: { name: string; avatar?: string };
-  /** 迟到分钟数，仅 delayed/alert 可能显示 */
   lateMinutes?: number;
 };
 
-/** 按类别分组的工人列表，用于点击底部卡片后展示与切换 */
-const WORKERS_BY_CATEGORY: Record<LiveMapCategory, WorkerOnMap[]> = {
-  alert: [
-    {
-      id: "3",
-      name: "Peter Laitio",
-      workerId: "120932",
-      team: "Team A",
-      status: "alert",
-      latitude: 60.168,
-      longitude: 24.935,
-      avatar: "https://placehold.co/72x72",
-      safetyContact: { name: "Anna Svensson", avatar: "https://placehold.co/72x72" },
-      lateMinutes: 30,
-    },
-    {
-      id: "5",
-      name: "Cody Fisher",
-      workerId: "A3123",
-      team: "Team A",
-      status: "alert",
-      latitude: 60.167,
-      longitude: 24.934,
-      avatar: "https://placehold.co/72x72",
-      safetyContact: { name: "Anna Svensson", avatar: "https://placehold.co/72x72" },
-      lateMinutes: 15,
-    },
-  ],
-  delayed: [
-    {
-      id: "2",
-      name: "Eleanor Pena",
-      workerId: "A3122",
-      team: "Team A",
-      status: "warning",
-      latitude: 60.171,
-      longitude: 24.94,
-      avatar: "https://placehold.co/72x72",
-      safetyContact: { name: "Anna Svensson", avatar: "https://placehold.co/72x72" },
-      lateMinutes: 20,
-    },
-  ],
-  active: [
-    {
-      id: "1",
-      name: "Albert Flores",
-      workerId: "A3121",
-      team: "Team A",
-      status: "normal",
-      latitude: 60.1699,
-      longitude: 24.9384,
-      avatar: "https://placehold.co/72x72",
-      safetyContact: { name: "Anna Svensson", avatar: "https://placehold.co/72x72" },
-    },
-    {
-      id: "4",
-      name: "Kathryn Murphy",
-      workerId: "A3124",
-      team: "Team A",
-      status: "normal",
-      latitude: 60.172,
-      longitude: 24.942,
-      avatar: "https://placehold.co/72x72",
-      safetyContact: { name: "Anna Svensson", avatar: "https://placehold.co/72x72" },
-    },
-  ],
-};
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function dbStatusToMapStatus(status: string): WorkerMapStatus {
+  if (status === "alert_sent") return "alert";
+  if (status === "grace_period") return "warning";
+  return "normal";
+}
+
+function dbStatusToCategory(status: string): LiveMapCategory {
+  if (status === "alert_sent") return "alert";
+  if (status === "grace_period") return "delayed";
+  return "active";
+}
+
+function statusToCategory(status: WorkerMapStatus): LiveMapCategory {
+  if (status === "alert") return "alert";
+  if (status === "warning") return "delayed";
+  return "active";
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
 
 const STATUS_PIN_COLOR: Record<WorkerMapStatus, string> = {
   normal: "#10B981",
@@ -120,14 +73,33 @@ const STATUS_TEXT_CLASS: Record<WorkerMapStatus, string> = {
   alert: "text-status-warning",
 };
 
-/** 地图上的所有工人（从分类合并），用于打点 */
-const MOCK_WORKERS_MAP: WorkerOnMap[] = [
-  ...WORKERS_BY_CATEGORY.alert,
-  ...WORKERS_BY_CATEGORY.delayed,
-  ...WORKERS_BY_CATEGORY.active,
+const CATEGORY_NAV_LABEL: Record<LiveMapCategory, string> = {
+  alert: "Hälytys",
+  delayed: "Myöhästyneitä",
+  active: "Aktiivisena",
+};
+
+const PHONE_BUTTON_BG_CLASS: Record<LiveMapCategory, string> = {
+  alert: "bg-state-critical",
+  delayed: "bg-state-grace",
+  active: "bg-state-active",
+};
+
+const INITIAL_REGION = {
+  latitude: 60.17,
+  longitude: 24.938,
+  latitudeDelta: 0.02,
+  longitudeDelta: 0.02,
+};
+
+const STAT_CARDS: { key: LiveMapCategory; label: string; valueClass: string }[] = [
+  { key: "alert",   label: "Hälytystilassa", valueClass: "text-state-critical" },
+  { key: "delayed", label: "Myöhästyneitä",  valueClass: "text-alert" },
+  { key: "active",  label: "Aktiivisena nyt", valueClass: "text-status-safe" },
 ];
 
-/** 地图上的工人标记：大头针形状 + 内嵌头像，颜色按状态 */
+// ── Sub-components ────────────────────────────────────────────────────────────
+
 function WorkerPinMarker({ worker }: { worker: WorkerOnMap }) {
   const pinColor = STATUS_PIN_COLOR[worker.status];
   const avatarUri = worker.avatar || "https://placehold.co/72x72";
@@ -161,41 +133,6 @@ function WorkerPinMarker({ worker }: { worker: WorkerOnMap }) {
   );
 }
 
-const INITIAL_REGION = {
-  latitude: 60.17,
-  longitude: 24.938,
-  latitudeDelta: 0.02,
-  longitudeDelta: 0.02,
-};
-
-/** Live Map 底部悬浮三张统计卡片：Hälytystilassa(红) / Myöhästyneitä(橙) / Aktiivisena nyt(绿) */
-const LIVE_MAP_STATS: { key: LiveMapCategory; label: string; value: number; valueClass: string }[] = [
-  { key: "alert", label: "Hälytystilassa", value: 2, valueClass: "text-state-critical" },
-  { key: "delayed", label: "Myöhästyneitä", value: 1, valueClass: "text-alert" },
-  { key: "active", label: "Aktiivisena nyt", value: 12, valueClass: "text-status-safe" },
-];
-
-const CATEGORY_NAV_LABEL: Record<LiveMapCategory, string> = {
-  alert: "Hälytys",
-  delayed: "Myöhästyneitä",
-  active: "Aktiivisena",
-};
-
-/** 电话按钮按类别着色：警告=红，Grace/延迟=橙，活跃=绿 */
-const PHONE_BUTTON_BG_CLASS: Record<LiveMapCategory, string> = {
-  alert: "bg-state-critical",
-  delayed: "bg-state-grace",
-  active: "bg-state-active",
-};
-
-/** worker.status → 用于电话按钮颜色的类别 */
-function statusToCategory(status: WorkerMapStatus): LiveMapCategory {
-  if (status === "alert") return "alert";
-  if (status === "warning") return "delayed";
-  return "active";
-}
-
-/** Focus 模式工人卡片：头像、姓名、工号|团队、电话按钮(按类别着色)、Turvakontakti、Myöhässä；可选底部左右切换栏；hideNavBar 时可传 onClose 显示关闭 */
 function FocusWorkerCard({
   worker,
   category,
@@ -206,6 +143,7 @@ function FocusWorkerCard({
   onNext,
   hideNavBar = false,
   onClose,
+  onInfo,
 }: {
   worker: WorkerOnMap;
   category: LiveMapCategory;
@@ -216,9 +154,11 @@ function FocusWorkerCard({
   onNext: () => void;
   hideNavBar?: boolean;
   onClose?: () => void;
+  onInfo?: () => void;
 }) {
   const navLabel = CATEGORY_NAV_LABEL[category];
   const phoneBgClass = PHONE_BUTTON_BG_CLASS[category];
+  const subtitle = [worker.employeeId, worker.team].filter(Boolean).join(" | ") || worker.workerId;
   return (
     <View
       className="rounded-xl bg-background-primary p-4 border border-gray-200/80"
@@ -238,9 +178,7 @@ function FocusWorkerCard({
         />
         <View className="flex-1 ml-3">
           <Text className="text-base font-semibold text-labels-primary">{worker.name}</Text>
-          <Text className="text-xs text-caption mt-0.5">
-            {worker.workerId} | {worker.team || "Team A"}
-          </Text>
+          <Text className="text-xs text-caption mt-0.5">{subtitle}</Text>
         </View>
         {hideNavBar && onClose && (
           <TouchableOpacity onPress={onClose} className="p-2 mr-1" hitSlop={8}>
@@ -260,22 +198,49 @@ function FocusWorkerCard({
         <View className="flex-1">
           <Text className="text-xs text-caption mb-1">Turvakontakti</Text>
           <View className="flex-row items-center gap-1">
-            <Image
-              source={{ uri: worker.safetyContact?.avatar || "https://placehold.co/48x48" }}
-              className="w-6 h-6 rounded-full bg-background-card"
-              resizeMode="cover"
-            />
+            {worker.safetyContact?.avatar ? (
+              <Image
+                source={{ uri: worker.safetyContact.avatar }}
+                className="w-6 h-6 rounded-full bg-background-card"
+                resizeMode="cover"
+              />
+            ) : (
+              <View className="w-6 h-6 rounded-full bg-background-card" />
+            )}
             <Text className="text-base text-primary">{worker.safetyContact?.name || "—"}</Text>
             <IconBell width={16} height={16} bg="#333333" fg="white" />
           </View>
         </View>
-        <View className="flex-1 items-end">
+        <View className="items-end">
           <Text className="text-xs text-caption mb-1">Myöhässä</Text>
-          {worker.lateMinutes != null ? (
-            <Text className="text-base font-medium text-state-critical">{worker.lateMinutes} min</Text>
-          ) : (
-            <Text className="text-base text-caption">—</Text>
-          )}
+          <View className="flex-row items-center gap-1">
+            {worker.lateMinutes != null ? (
+              <Text className="text-base font-medium text-state-critical">{worker.lateMinutes} min</Text>
+            ) : (
+              <Text className="text-base text-caption">—</Text>
+            )}
+            {onInfo && (
+              <TouchableOpacity onPress={onInfo} hitSlop={8} style={{ marginLeft: 4 }}>
+                <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
+                  <Path
+                    d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"
+                    fill="#333333"
+                  />
+                  <Path
+                    d="M12 11v6"
+                    stroke="white"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                  <Path
+                    d="M12 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"
+                    fill="white"
+                  />
+                </Svg>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
       {!hideNavBar && (
@@ -311,11 +276,7 @@ function WorkerInfoCard({
     <View className="rounded-card bg-background-primary border border-gray-200 p-4 shadow-sm">
       <View className="flex-row items-center justify-between mb-3">
         <Text className="text-lg font-semibold text-primary">{worker.name}</Text>
-        <TouchableOpacity
-          onPress={onClose}
-          hitSlop={12}
-          className="px-2 py-1"
-        >
+        <TouchableOpacity onPress={onClose} hitSlop={12} className="px-2 py-1">
           <Text className="text-caption text-base">✕</Text>
         </TouchableOpacity>
       </View>
@@ -336,26 +297,119 @@ function WorkerInfoCard({
   );
 }
 
+// ── Screen ────────────────────────────────────────────────────────────────────
+
+const EMPTY_CATEGORIES: Record<LiveMapCategory, WorkerOnMap[]> = {
+  alert: [], delayed: [], active: [],
+};
+
 export default function LiveMapScreen() {
   const router = useRouter();
   const [selectedWorker, setSelectedWorker] = useState<WorkerOnMap | null>(null);
-  /** 点击底部卡片选中的类别；null = 未选 */
   const [selectedCategory, setSelectedCategory] = useState<LiveMapCategory | null>(null);
-  /** 当前在该类别中展示的工人下标 */
   const [categoryWorkerIndex, setCategoryWorkerIndex] = useState(0);
+  const [workersByCategory, setWorkersByCategory] = useState<Record<LiveMapCategory, WorkerOnMap[]>>(EMPTY_CATEGORIES);
   const markerPressedRef = useRef(false);
+  const mapRef = useRef<MapView>(null);
 
-  const categoryWorkers = selectedCategory ? WORKERS_BY_CATEGORY[selectedCategory] : [];
+  const focusOnWorker = useCallback((worker: WorkerOnMap) => {
+    mapRef.current?.animateToRegion(
+      { latitude: worker.latitude, longitude: worker.longitude, latitudeDelta: 0.01, longitudeDelta: 0.01 },
+      500,
+    );
+  }, []);
+
+  const fetchWorkers = useCallback(async () => {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    const { data, error } = await supabase
+      .from("work_sessions")
+      .select(`
+        *,
+        profiles!user_id(id, name, avatar_url, role, employee_id, team),
+        safety_contacts!safety_contact_id(name, avatar_url, phone)
+      `)
+      .in("status", ["active", "grace_period", "alert_sent"])
+      .gte("start_time", todayStart.toISOString())
+      .lt("start_time", todayEnd.toISOString());
+
+    console.log("[live-map] raw data:", JSON.stringify(data, null, 2));
+    console.log("[live-map] error:", error);
+
+    if (!data) return;
+
+    type ProfileShape = { id: string; name: string | null; avatar_url: string | null; role: string | null; employee_id: string | null; team: string | null } | null;
+    type ContactShape = { name: string | null; avatar_url: string | null } | null;
+
+    const categories: Record<LiveMapCategory, WorkerOnMap[]> = { alert: [], delayed: [], active: [] };
+
+    for (const s of data) {
+      const profileRaw = s.profiles as unknown;
+      const profile = (Array.isArray(profileRaw) ? profileRaw[0] : profileRaw) as ProfileShape;
+
+      const contactRaw = s.safety_contacts as unknown;
+      const contact = (Array.isArray(contactRaw) ? contactRaw[0] : contactRaw) as ContactShape;
+
+      console.log(`[live-map] session ${s.id} → role=${profile?.role} contact=${contact?.name}`);
+
+      if (profile?.role !== "worker") continue;
+      if (s.last_known_latitude == null || s.last_known_longitude == null) continue;
+      const mapStatus = dbStatusToMapStatus(s.status);
+      const category = dbStatusToCategory(s.status);
+
+      let lateMinutes: number | undefined;
+      if (s.expected_end_time && (s.status === "grace_period" || s.status === "alert_sent")) {
+        const diff = Math.round((Date.now() - new Date(s.expected_end_time).getTime()) / 60000);
+        if (diff > 0) lateMinutes = diff;
+      }
+
+      categories[category].push({
+        id: profile.id ?? s.id,
+        sessionId: s.id,
+        name: profile.name ?? "—",
+        workerId: s.id.slice(0, 8).toUpperCase(),
+        employeeId: profile.employee_id ?? undefined,
+        team: profile.team ?? undefined,
+        status: mapStatus,
+        latitude: s.last_known_latitude,
+        longitude: s.last_known_longitude,
+        avatar: profile.avatar_url ?? undefined,
+        safetyContact: contact?.name ? { name: contact.name, avatar: contact.avatar_url ?? undefined } : undefined,
+        lateMinutes,
+      });
+    }
+
+    setWorkersByCategory(categories);
+  }, []);
+
+  useEffect(() => {
+    fetchWorkers();
+    const interval = setInterval(fetchWorkers, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchWorkers]);
+
+  const allMapWorkers = [
+    ...workersByCategory.alert,
+    ...workersByCategory.delayed,
+    ...workersByCategory.active,
+  ];
+
+  const categoryWorkers = React.useMemo(
+    () => (selectedCategory ? workersByCategory[selectedCategory] : []),
+    [selectedCategory, workersByCategory],
+  );
   const currentFocusWorker =
     categoryWorkers.length > 0 ? categoryWorkers[categoryWorkerIndex % categoryWorkers.length] : null;
 
   const handleContact = useCallback(() => {
-    if (!selectedWorker) return;
-    Linking.openURL(`tel:+358401234567`);
-  }, [selectedWorker]);
+    Linking.openURL("tel:+358401234567");
+  }, []);
 
   const handleCategoryCall = useCallback(() => {
-    Linking.openURL(`tel:+358401234567`);
+    Linking.openURL("tel:+358401234567");
   }, []);
 
   const handleBack = useCallback(() => {
@@ -369,13 +423,17 @@ export default function LiveMapScreen() {
 
   const handlePrevWorker = useCallback(() => {
     if (categoryWorkers.length === 0) return;
-    setCategoryWorkerIndex((i) => (i - 1 + categoryWorkers.length) % categoryWorkers.length);
-  }, [categoryWorkers.length]);
+    const next = (categoryWorkerIndex - 1 + categoryWorkers.length) % categoryWorkers.length;
+    setCategoryWorkerIndex(next);
+    focusOnWorker(categoryWorkers[next]);
+  }, [categoryWorkers, categoryWorkerIndex, focusOnWorker]);
 
   const handleNextWorker = useCallback(() => {
     if (categoryWorkers.length === 0) return;
-    setCategoryWorkerIndex((i) => (i + 1) % categoryWorkers.length);
-  }, [categoryWorkers.length]);
+    const next = (categoryWorkerIndex + 1) % categoryWorkers.length;
+    setCategoryWorkerIndex(next);
+    focusOnWorker(categoryWorkers[next]);
+  }, [categoryWorkers, categoryWorkerIndex, focusOnWorker]);
 
   if (Platform.OS === "web") {
     return (
@@ -398,15 +456,16 @@ export default function LiveMapScreen() {
               worker={currentFocusWorker}
               category={selectedCategory}
               index={categoryWorkerIndex}
-              total={LIVE_MAP_STATS.find((s) => s.key === selectedCategory)?.value ?? categoryWorkers.length}
+              total={categoryWorkers.length}
               onCall={handleCategoryCall}
               onPrev={handlePrevWorker}
               onNext={handleNextWorker}
+              onInfo={() => router.push(`/history-details?id=${currentFocusWorker.sessionId}`)}
             />
           </View>
         )}
         <View className="absolute left-6 right-6 bottom-6 flex-row gap-4">
-          {LIVE_MAP_STATS.map((stat) => (
+          {STAT_CARDS.map((stat) => (
             <TouchableOpacity
               key={stat.key}
               activeOpacity={0.8}
@@ -421,10 +480,8 @@ export default function LiveMapScreen() {
                 elevation: 3,
               }}
             >
-              <Text
-                className={`text-3xl font-bold tracking-tight ${stat.valueClass}`}
-              >
-                {stat.value}
+              <Text className={`text-3xl font-bold tracking-tight ${stat.valueClass}`}>
+                {workersByCategory[stat.key].length}
               </Text>
               <Text className="text-xs font-normal leading-4 text-labels-primary text-center mt-0.5">
                 {stat.label}
@@ -442,27 +499,29 @@ export default function LiveMapScreen() {
 
       <View className="flex-1">
         <MapView
+          ref={mapRef}
           style={{ flex: 1, width: "100%" }}
           initialRegion={INITIAL_REGION}
           showsUserLocation
+          scrollEnabled
+          zoomEnabled
+          pitchEnabled
           onPress={() => {
             if (markerPressedRef.current) return;
             setSelectedWorker(null);
             setSelectedCategory(null);
           }}
         >
-          {MOCK_WORKERS_MAP.map((worker) => (
+          {allMapWorkers.map((worker) => (
             <Marker
               key={worker.id}
-              coordinate={{
-                latitude: worker.latitude,
-                longitude: worker.longitude,
-              }}
+              coordinate={{ latitude: worker.latitude, longitude: worker.longitude }}
               anchor={{ x: 0.5, y: 1 }}
               onPress={() => {
                 markerPressedRef.current = true;
                 setSelectedCategory(null);
                 setSelectedWorker(worker);
+                focusOnWorker(worker);
                 setTimeout(() => { markerPressedRef.current = false; }, 100);
               }}
             >
@@ -472,29 +531,28 @@ export default function LiveMapScreen() {
         </MapView>
       </View>
 
-      {/* 点击底部卡片后：上方显示该类别下的 focus 工人卡片 + 左右切换；total 用该类目统计数（如 Aktiivisena 为 12） */}
       {selectedCategory && currentFocusWorker && (
         <View className="absolute left-4 right-4 bottom-28" pointerEvents="box-none">
-          <TouchableOpacity activeOpacity={1} onPress={() => setSelectedCategory(null)}>
+          <TouchableOpacity activeOpacity={0.95} onPress={() => focusOnWorker(currentFocusWorker)}>
             <FocusWorkerCard
               worker={currentFocusWorker}
               category={selectedCategory}
               index={categoryWorkerIndex}
-              total={LIVE_MAP_STATS.find((s) => s.key === selectedCategory)?.value ?? categoryWorkers.length}
+              total={categoryWorkers.length}
               onCall={handleCategoryCall}
               onPrev={handlePrevWorker}
               onNext={handleNextWorker}
+              onInfo={() => router.push(`/history-details?id=${currentFocusWorker.sessionId}`)}
             />
           </TouchableOpacity>
         </View>
       )}
 
-      {/* 底部悬浮三张统计卡片：点击选中（白底 #ffffff）、切换上方 focus 卡片 */}
       <View
         className="absolute left-6 right-6 bottom-6 flex-row gap-4"
         pointerEvents="box-none"
       >
-        {LIVE_MAP_STATS.map((stat) => (
+        {STAT_CARDS.map((stat) => (
           <TouchableOpacity
             key={stat.key}
             activeOpacity={0.8}
@@ -509,10 +567,8 @@ export default function LiveMapScreen() {
               elevation: 3,
             }}
           >
-            <Text
-              className={`text-3xl font-bold tracking-tight ${stat.valueClass}`}
-            >
-              {stat.value}
+            <Text className={`text-3xl font-bold tracking-tight ${stat.valueClass}`}>
+              {workersByCategory[stat.key].length}
             </Text>
             <Text className="text-xs font-normal leading-4 text-labels-primary text-center mt-0.5">
               {stat.label}
@@ -521,10 +577,9 @@ export default function LiveMapScreen() {
         ))}
       </View>
 
-      {/* 点击地图 marker：沿用 Focus 卡片样式，无底部左右切换栏；电话按钮颜色按该员工状态 */}
       {selectedWorker && !selectedCategory && (
         <View className="absolute left-4 right-4 bottom-28" pointerEvents="box-none">
-          <TouchableOpacity activeOpacity={1} onPress={() => setSelectedWorker(null)}>
+          <TouchableOpacity activeOpacity={0.95} onPress={() => focusOnWorker(selectedWorker)}>
             <FocusWorkerCard
               worker={selectedWorker}
               category={statusToCategory(selectedWorker.status)}
@@ -534,6 +589,7 @@ export default function LiveMapScreen() {
               onPrev={() => {}}
               onNext={() => {}}
               hideNavBar
+              onInfo={() => router.push(`/history-details?id=${selectedWorker.sessionId}`)}
             />
           </TouchableOpacity>
         </View>
