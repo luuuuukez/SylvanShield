@@ -1,6 +1,3 @@
-export { IconCellular } from "./IconCellular";
-export { IconWifi } from "./IconWifi";
-export { IconBattery } from "./IconBattery";
 export { IconLocationPin } from "./IconLocationPin";
 export { IconSun } from "./IconSun";
 export { IconWind } from "./IconWind";
