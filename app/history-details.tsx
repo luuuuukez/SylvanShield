@@ -124,7 +124,7 @@ function buildTimeline(session: SessionDetail): TimelineEvent[] {
 
 const DOT_BG: Record<DotColor, string> = {
   black: "#333333",
-  orange: "#FA8B46",
+  orange: "#FB923C",
   red: "#EF4444",
 };
 
@@ -271,7 +271,7 @@ export default function HistoryDetailsScreen() {
       <SafeAreaView className="flex-1 bg-background-primary" edges={["top"]}>
         <ScreenHeader title="Historia" onClose={() => router.back()} />
         <View className="flex-1 items-center justify-center">
-          <Text className="text-caption text-base">Työvuoroa ei löydy</Text>
+          <Text className="text-secondary text-base">Työvuoroa ei löydy</Text>
         </View>
       </SafeAreaView>
     );
@@ -357,8 +357,8 @@ export default function HistoryDetailsScreen() {
         </View>
 
         {/* Safety contact */}
-        <Text className="text-xs text-caption leading-4 mb-2">Nykyinen Turvakontakti</Text>
-        <View className="rounded-2xl bg-background-card overflow-hidden" style={{ height: 64 }}>
+        <Text className="text-xs text-secondary leading-4 mb-2">Nykyinen Turvakontakti</Text>
+        <View className="rounded-inner-card bg-background-card overflow-hidden" style={{ height: 64 }}>
           {contact?.avatar_url ? (
             <Image
               source={{ uri: contact.avatar_url }}
@@ -396,7 +396,7 @@ export default function HistoryDetailsScreen() {
         </View>
 
         {/* Last location snapshot */}
-        <Text className="text-xs text-caption leading-4 mt-6 mb-2">Lopullinen sijainti</Text>
+        <Text className="text-xs text-secondary leading-4 mt-6 mb-2">Lopullinen sijainti</Text>
         {mapRegion ? (
           <>
             <View className="rounded-card overflow-hidden" style={{ height: 112 }}>
@@ -421,7 +421,7 @@ export default function HistoryDetailsScreen() {
           </>
         ) : (
           <View className="rounded-card bg-background-card items-center justify-center" style={{ height: 112 }}>
-            <Text className="text-caption text-sm">Sijaintitietoja ei saatavilla</Text>
+            <Text className="text-secondary text-sm">Sijaintitietoja ei saatavilla</Text>
           </View>
         )}
       </ScrollView>

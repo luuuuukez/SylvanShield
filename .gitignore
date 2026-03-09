@@ -41,6 +41,6 @@ yarn-error.*
 /ios
 /android
 
-# figma
+# design
 temp_figma
-
+design-audit.html

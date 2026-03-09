@@ -78,7 +78,7 @@ function HistoryCard({
     <TouchableOpacity
       activeOpacity={0.8}
       onPress={onPress}
-      className="min-h-28 flex-row rounded-2xl bg-history-card overflow-hidden p-4"
+      className="min-h-28 flex-row rounded-inner-card bg-background-card overflow-hidden p-4"
     >
       <View className="flex-1 gap-1 justify-center">
         <Text className="text-xl font-normal leading-6 text-primary">
@@ -151,7 +151,7 @@ export default function HistoryScreen() {
         </View>
       ) : sessions.length === 0 ? (
         <View className="flex-1 items-center justify-center">
-          <Text className="text-caption text-base">Ei työvuoroja</Text>
+          <Text className="text-secondary text-base">Ei työvuoroja</Text>
         </View>
       ) : (
         <ScrollView

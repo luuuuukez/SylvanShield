@@ -15,8 +15,9 @@ module.exports = {
         "background-card": "#F5F5F5",
         "labels-primary": "#000000",
         primary: "#27272A",
-        caption: "#9CA3AF",
-        "tab-unselected": "#999999",
+        // Gray text scale — 2 tokens replacing 4 near-identical grays
+        secondary: "#9CA3AF",   // captions, inactive tab labels, hints
+        tertiary: "#71717A",    // chart axis, profile subtitle, muted axis labels
         "tab-selected": "#000000",
         "icon-primary": "#333333",
         "weather-sun": "#EDA36E",
@@ -31,19 +32,16 @@ module.exports = {
         "border-state-active": "#DCFCE7",
         "border-state-grace": "#FFEDD5",
         "border-state-critical": "#FFE4E6",
-        alert: "#FA8B46",
+        // Unified orange — same value as state-grace
+        alert: "#FB923C",
         overlay: "rgba(0, 0, 0, 0.4)",
         "tint-alert-banner": "#FFF7ED",
-        "chart-axis": "#71717A",
-        "chart-line": "#767676",
         "chart-grid": "#E5E5E5",
         "chart-tooltip": "#000000",
         "chart-tooltip-text": "#FFFFFF",
-        "history-card": "#FAFAF9",
         "status-safe": "#10B981",
         "status-warning": "#EF4444",
         "chevron-muted": "#B0B3BA",
-        "profile-subtitle": "#71717A",
         separator: "#E5E5E5",
         "brand-primary": "#FFAE23",
       },
@@ -51,6 +49,7 @@ module.exports = {
         card: "20px",
         button: "100px",
         modal: "34px",
+        "inner-card": "16px",  // unified secondary card radius (replaces rounded-xl + rounded-2xl)
       },
       borderWidth: {
         bar: "0.33px",
