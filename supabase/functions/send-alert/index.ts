@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
         "Authorization": `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: "MotoSafe <onboarding@resend.dev>",
+        from: "SylvanShield <onboarding@resend.dev>",
         to: [contact.email],
         subject: `🚨 Hätäilmoitus – ${workerName}`,
         html: `
@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
           <p>Turvajärjestelmä on lähettänyt tämän ilmoituksen automaattisesti.</p>
           <p>Ota yhteyttä työntekijään välittömästi.</p>
           <hr/>
-          <p style="color: #999; font-size: 12px;">MotoSafe – Metsätyöntekijöiden turvavalvonta</p>
+          <p style="color: #999; font-size: 12px;">SylvanShield – Metsätyöntekijöiden turvavalvonta</p>
         `,
       }),
     });

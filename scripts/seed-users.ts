@@ -31,76 +31,76 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const TEST_PASSWORD = "Motosafe2025!";
+const TEST_PASSWORD = "SylvanShield2025!";
 
 // 10 realistic Finnish test users
 const SEED_USERS = [
   {
     name: "Mikael Lindqvist",
-    email: "mikael.lindqvist@motosafe.test",
+    email: "mikael.lindqvist@sylvanshield.test",
     phone: "+358401234001",
     role: "worker" as const,
     avatar_url: "https://randomuser.me/api/portraits/men/11.jpg",
   },
   {
     name: "Antti Mäkinen",
-    email: "antti.makinen@motosafe.test",
+    email: "antti.makinen@sylvanshield.test",
     phone: "+358401234002",
     role: "worker" as const,
     avatar_url: "https://randomuser.me/api/portraits/men/22.jpg",
   },
   {
     name: "Sanna Korhonen",
-    email: "sanna.korhonen@motosafe.test",
+    email: "sanna.korhonen@sylvanshield.test",
     phone: "+358401234003",
     role: "worker" as const,
     avatar_url: "https://randomuser.me/api/portraits/women/33.jpg",
   },
   {
     name: "Juhani Virtanen",
-    email: "juhani.virtanen@motosafe.test",
+    email: "juhani.virtanen@sylvanshield.test",
     phone: "+358401234004",
     role: "worker" as const,
     avatar_url: "https://randomuser.me/api/portraits/men/44.jpg",
   },
   {
     name: "Päivi Leinonen",
-    email: "paivi.leinonen@motosafe.test",
+    email: "paivi.leinonen@sylvanshield.test",
     phone: "+358401234005",
     role: "worker" as const,
     avatar_url: "https://randomuser.me/api/portraits/women/55.jpg",
   },
   {
     name: "Tero Hämäläinen",
-    email: "tero.hamalainen@motosafe.test",
+    email: "tero.hamalainen@sylvanshield.test",
     phone: "+358401234006",
     role: "worker" as const,
     avatar_url: "https://randomuser.me/api/portraits/men/66.jpg",
   },
   {
     name: "Minna Saarinen",
-    email: "minna.saarinen@motosafe.test",
+    email: "minna.saarinen@sylvanshield.test",
     phone: "+358401234007",
     role: "worker" as const,
     avatar_url: "https://randomuser.me/api/portraits/women/77.jpg",
   },
   {
     name: "Petri Nieminen",
-    email: "petri.nieminen@motosafe.test",
+    email: "petri.nieminen@sylvanshield.test",
     phone: "+358401234008",
     role: "worker" as const,
     avatar_url: "https://randomuser.me/api/portraits/men/88.jpg",
   },
   {
     name: "Laura Heikkinen",
-    email: "laura.heikkinen@motosafe.test",
+    email: "laura.heikkinen@sylvanshield.test",
     phone: "+358401234009",
     role: "worker" as const,
     avatar_url: "https://randomuser.me/api/portraits/women/9.jpg",
   },
   {
     name: "Markus Selin",
-    email: "markus.selin@motosafe.test",
+    email: "markus.selin@sylvanshield.test",
     phone: "+358401234010",
     role: "supervisor" as const,
     avatar_url: "https://randomuser.me/api/portraits/men/10.jpg",

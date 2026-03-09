@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Motosafe",
-    "slug": "Motosafe",
-    "scheme": "motosafe",
+    "name": "SylvanShield",
+    "slug": "SylvanShield",
+    "scheme": "sylvanshield",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
