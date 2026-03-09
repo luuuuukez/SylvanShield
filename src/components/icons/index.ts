@@ -21,3 +21,7 @@ export { IconClock } from "./IconClock";
 export { IconSliders } from "./IconSliders";
 export { IconClose } from "./IconClose";
 export { IconPhone } from "./IconPhone";
+export { IconExternalLink } from "./IconExternalLink";
+export { IconPlus } from "./IconPlus";
+export { IconCameraOverlay } from "./IconCameraOverlay";
+export { IconTrash } from "./IconTrash";

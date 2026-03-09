@@ -180,6 +180,7 @@ function StateButtonGlow({
 export default function WorkScreen() {
   const {
     status,
+    sessionId,
     startSession,
     stopSession,
     transitionToGracePeriod,
@@ -187,6 +188,7 @@ export default function WorkScreen() {
     restoreSession,
   } = useSessionStore();
   const [showShiftEndModal, setShowShiftEndModal] = useState(false);
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
 
   const shiftEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gracePeriodTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -224,11 +226,11 @@ export default function WorkScreen() {
     }
     gracePeriodTimerRef.current = setTimeout(() => {
       gracePeriodTimerRef.current = null;
-      sendEmergencyAlert();
+      if (sessionId) void sendEmergencyAlert(sessionId);
       transitionToAlertSent();
     }, GRACE_PERIOD_MS);
     return clearGracePeriodTimer;
-  }, [status, transitionToAlertSent]);
+  }, [status, sessionId, transitionToAlertSent]);
 
   const handleModalContinue = () => {
     setShowShiftEndModal(false);
@@ -368,6 +370,7 @@ export default function WorkScreen() {
   }));
 
   const handleAlertPressIn = () => {
+    fillProgress.value = 0;
     fillProgress.value = withTiming(
       ALERT_BUTTON_HEIGHT,
       { duration: LONG_PRESS_ALERT_CLEAR_MS },
@@ -405,13 +408,13 @@ export default function WorkScreen() {
         {/* Row: Kello (left) / Sää (right) */}
         <View className="flex-row justify-between items-center">
           <View className="gap-2">
-            <Text className="text-caption text-xs">Kello</Text>
+            <Text className="text-secondary text-xs">Kello</Text>
             <Text className="text-primary text-4xl font-bold tracking-wide">
               {clockTime}
             </Text>
           </View>
           <View className="gap-2">
-            <Text className="text-caption text-xs">Sää</Text>
+            <Text className="text-secondary text-xs">Sää</Text>
             {weatherLoading ? (
               <Text className="text-primary text-base">Ladataan...</Text>
             ) : weather ? (
@@ -490,7 +493,7 @@ export default function WorkScreen() {
                       bottom: 0,
                       left: 0,
                       right: 0,
-                      backgroundColor: "#E33636",
+                      backgroundColor: "#EF4444",
                     },
                     fillAnimStyle,
                   ]}
@@ -522,7 +525,7 @@ export default function WorkScreen() {
         {/* Bottom row: Turvakontakti | Suunniteltu työaika */}
         <View className="mt-8 flex-row justify-between gap-4">
           <View className="flex-1 gap-2">
-            <Text className="text-caption text-xs">Turvahenkilö</Text>
+            <Text className="text-secondary text-xs">Turvahenkilö</Text>
             <View className="flex-row items-center gap-1">
               {safeContact?.avatar_url ? (
                 <Image
@@ -536,13 +539,15 @@ export default function WorkScreen() {
               <Text className="text-base text-primary">
                 {safeContact?.name ?? "Ei asetettu"}
               </Text>
-              <IconBell bg="#333333" fg="white" />
+              <TouchableOpacity onPress={() => setShowEmergencyModal(true)} activeOpacity={0.7}>
+                <IconBell bg="#333333" fg="white" />
+              </TouchableOpacity>
             </View>
           </View>
           <View className="flex-1 gap-2 items-end">
             {status === "IDLE" ? (
               <>
-                <Text className="text-caption text-xs">Suunniteltu työaika</Text>
+                <Text className="text-secondary text-xs">Suunniteltu työaika</Text>
                 <Text className="text-xl text-primary">
                   {scheduleLoading
                     ? "Ladataan..."
@@ -553,7 +558,7 @@ export default function WorkScreen() {
               </>
             ) : (
               <>
-                <Text className="text-caption text-xs">Aikaa jäljellä</Text>
+                <Text className="text-secondary text-xs">Aikaa jäljellä</Text>
                 {secondsLeft > 0 ? (
                   <Text
                     className={`text-xl font-bold ${
@@ -586,6 +591,51 @@ export default function WorkScreen() {
         </View>
       </View>
 
+      {/* Emergency alert confirmation modal */}
+      <Modal
+        visible={showEmergencyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEmergencyModal(false)}
+      >
+        <View className="flex-1 bg-overlay justify-center items-center px-6">
+          <View className="w-80 overflow-hidden rounded-modal bg-white">
+            <View className="items-center pt-9">
+              <IconAlert color="#EF4444" width={40} height={40} />
+            </View>
+            <Text className="mt-4 text-center text-xl font-bold text-state-critical px-8">
+              Lähetä hätäilmoitus?
+            </Text>
+            <Text className="mt-3 text-center text-base text-primary px-8">
+              Hätäilmoitus lähetetään turvakontaktillesi välittömästi.
+            </Text>
+            <View className="px-10 pt-8 pb-10 gap-4">
+              <TouchableOpacity
+                onPress={() => {
+                  setShowEmergencyModal(false);
+                  if (sessionId) void sendEmergencyAlert(sessionId);
+                }}
+                activeOpacity={0.8}
+                className="h-14 w-60 items-center justify-center self-center rounded-button bg-black"
+                accessibilityRole="button"
+                accessibilityLabel="Lähetä"
+              >
+                <Text className="text-base text-white">Lähetä</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowEmergencyModal(false)}
+                activeOpacity={0.8}
+                className="h-14 w-60 items-center justify-center self-center rounded-button border border-black bg-white"
+                accessibilityRole="button"
+                accessibilityLabel="Peruuta"
+              >
+                <Text className="text-base text-primary">Peruuta</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Shift-end modal: black overlay + white card */}
       <Modal
         visible={showShiftEndModal}
@@ -604,7 +654,7 @@ export default function WorkScreen() {
             <Text className="mt-3 text-center text-base text-primary px-8">
               Vahvista, että olet turvassa
             </Text>
-            <Text className="mt-2 text-center text-caption text-xs px-8">
+            <Text className="mt-2 text-center text-secondary text-xs px-8">
               Hälytys lähetetään, jos et vastaa
             </Text>
             <View className="px-10 pt-8 pb-10 gap-4">

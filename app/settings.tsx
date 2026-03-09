@@ -107,7 +107,7 @@ export default function SettingsScreen() {
         <View className="flex-1" />
 
         {/* Version */}
-        <Text className="text-center text-xs text-caption mb-6">
+        <Text className="text-center text-xs text-secondary mb-6">
           Sovelluksen versio v1.0.0
         </Text>
 
@@ -129,7 +129,7 @@ export default function SettingsScreen() {
           activeOpacity={0.7}
           className="items-center pb-8"
         >
-          <Text className="text-base text-caption">Kirjaudu ulos</Text>
+          <Text className="text-base text-secondary">Kirjaudu ulos</Text>
         </TouchableOpacity>
       </View>
 

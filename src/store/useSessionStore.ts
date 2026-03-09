@@ -3,47 +3,44 @@ import { supabase } from "../lib/supabase";
 
 /**
  * Session state machine:
- * IDLE -> ACTIVE (startSession)
- * ACTIVE -> GRACE_PERIOD (user taps "Continue" in shift-end modal)
- * ACTIVE -> IDLE (user taps "Sign-out" in shift-end modal)
- * GRACE_PERIOD -> IDLE (user taps button to sign out safely)
- * GRACE_PERIOD -> ALERT_SENT (grace period timeout, emergency alert sent)
- * ALERT_SENT -> IDLE (user completes 3s long-press, sendAlertClearedNotification)
+ * IDLE → ACTIVE (startSession)
+ * ACTIVE → GRACE_PERIOD (transitionToGracePeriod, after shift-end modal)
+ * ACTIVE → IDLE (stopSession, user signs out from modal)
+ * GRACE_PERIOD → IDLE (stopSession, user signs out safely)
+ * GRACE_PERIOD → ALERT_SENT (transitionToAlertSent, grace period timeout)
+ * ALERT_SENT → IDLE (stopSession, user completes 3s long-press)
  */
-export type SessionStatus =
-  | "IDLE"
-  | "ACTIVE"
-  | "GRACE_PERIOD"
-  | "ALERT_SENT";
+
+export type SessionStatus = "IDLE" | "ACTIVE" | "GRACE_PERIOD" | "ALERT_SENT";
 
 export const SESSION_STATUS_CONFIG: Record<
   SessionStatus,
   { label: string; subLabel: string; color: string }
 > = {
   IDLE: {
-    label: "No session active",
-    subLabel: "Safety tracking is off",
+    label: "Ei työjaksoa käynnissä",
+    subLabel: "Turvaseuranta ei ole käytössä",
     color: "#000000",
   },
   ACTIVE: {
-    label: "Session active",
-    subLabel: "Safety tracking on",
+    label: "Työjakso käynnissä",
+    subLabel: "Turvaseuranta käytössä",
     color: "#16A34A",
   },
   GRACE_PERIOD: {
-    label: "Grace period",
-    subLabel: "Tap to sign out safely, or wait for alert",
+    label: "Työaika ylitetty",
+    subLabel: "Kuittaa ulos tai odota hälytystä",
     color: "#F97316",
   },
   ALERT_SENT: {
-    label: "Emergency alert sent",
-    subLabel: "Hold 3s to clear and return to idle",
+    label: "Vastausta ei havaittu",
+    subLabel: "Pidä painiketta 3 s peruuttaaksesi",
     color: "#DC2626",
   },
 };
 
-// DB status values (lowercase) → store status
-const DB_TO_STORE: Record<string, SessionStatus> = {
+// DB status strings (lowercase) → store status
+export const DB_TO_STORE: Record<string, SessionStatus> = {
   active: "ACTIVE",
   grace_period: "GRACE_PERIOD",
   alert_sent: "ALERT_SENT",
@@ -56,19 +53,21 @@ export interface SessionState {
   stopSession: () => void;
   transitionToGracePeriod: () => void;
   transitionToAlertSent: () => void;
-  restoreSession: (sessionId: string, status: SessionStatus) => void;
+  restoreSession: (id: string, status: SessionStatus) => void;
 }
 
 export const useSessionStore = create<SessionState>()((set, get) => ({
   status: "IDLE",
   sessionId: null,
 
-  restoreSession: (sessionId, status) => set({ sessionId, status }),
+  restoreSession: (id, status) => set({ sessionId: id, status }),
 
   startSession: () => {
     set({ status: "ACTIVE" });
     void (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
 
       const { data: contact } = await supabase
@@ -130,18 +129,17 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
 }));
 
 /**
- * Called when grace period expires; triggers transition to ALERT_SENT.
- * Replace with real push/SMS notification implementation.
+ * Calls the send-alert Edge Function for the given session.
+ * Invoked when grace period expires or the user manually triggers an alert.
  */
-export function sendEmergencyAlert(): void {
-  if (__DEV__) {
-    console.log("[Safety] sendEmergencyAlert() invoked");
-  }
+export async function sendEmergencyAlert(sessionId: string): Promise<void> {
+  await supabase.functions.invoke("send-alert", {
+    body: { session_id: sessionId },
+  });
 }
 
 /**
- * Called when user taps to sign out safely during grace period.
- * Replace with real push/SMS notification implementation.
+ * Called when the user signs out safely during grace period.
  */
 export function sendSafeSignOutNotification(): void {
   if (__DEV__) {
@@ -150,13 +148,10 @@ export function sendSafeSignOutNotification(): void {
 }
 
 /**
- * Called when user completes 3s long-press in ALERT_SENT to clear and return to IDLE.
- * Replace with real push/SMS notification implementation.
+ * Called when the user completes the 3s long-press in ALERT_SENT to cancel the alert.
  */
 export function sendAlertClearedNotification(): void {
   if (__DEV__) {
     console.log("[Safety] sendAlertClearedNotification() invoked");
   }
 }
-
-export { DB_TO_STORE };

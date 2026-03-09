@@ -105,7 +105,7 @@ export default function ProfileScreen() {
           <Text className="text-xl font-normal leading-6 text-primary">
             {loading ? "Ladataan..." : displayName}
           </Text>
-          <Text className="text-base font-normal leading-5 text-profile-subtitle">
+          <Text className="text-base font-normal leading-5 text-tertiary">
             {loading ? "" : displayRole}
           </Text>
         </View>

@@ -78,10 +78,10 @@ function WorkerRow({ item, onPress }: { item: WorkerItem; onPress: () => void })
           <Text className="text-base font-medium text-labels-primary" numberOfLines={1}>
             {item.name}
           </Text>
-          <Text className="text-caption text-xs mt-0.5">{subtitle}</Text>
+          <Text className="text-secondary text-xs mt-0.5">{subtitle}</Text>
         </View>
       </View>
-      <Text className="text-caption text-lg ml-2">›</Text>
+      <Text className="text-secondary text-lg ml-2">›</Text>
     </TouchableOpacity>
   );
 }
@@ -189,7 +189,7 @@ function WorkerDetailsSheet({
               contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 24 }}
               showsVerticalScrollIndicator={true}
               ListEmptyComponent={
-                <Text className="text-caption text-base text-center mt-8">Ei työntekijöitä</Text>
+                <Text className="text-secondary text-base text-center mt-8">Ei työntekijöitä</Text>
               }
             />
           </SafeAreaView>
@@ -204,12 +204,12 @@ function WorkerDetailsSheet({
 function ChartPlaceholder({ data }: { data: ChartDataPoint[] }) {
   return (
     <View className="flex-1 items-center justify-center rounded-card bg-background-card px-4 py-6">
-      <Text className="text-caption text-center text-sm">
+      <Text className="text-secondary text-center text-sm">
         Aktiiviset työntekijät – kaavio näkyy sovellusversiossa
       </Text>
       <View className="mt-3 flex-row flex-wrap justify-center gap-2">
         {data.map((d) => (
-          <Text key={d.date} className="text-chart-axis text-xs">
+          <Text key={d.date} className="text-tertiary text-xs">
             {d.date}: {d.workers}
           </Text>
         ))}
@@ -219,8 +219,8 @@ function ChartPlaceholder({ data }: { data: ChartDataPoint[] }) {
 }
 
 const Y_TICKS = 5;
-const CHART_H = 230;
-const CHART_PAD = { top: 8, bottom: 24, left: 40, right: 16 };
+const CHART_H = 220;
+const CHART_PAD = { top: 16, bottom: 24, left: 40, right: 20 };
 const INNER_H = CHART_H - CHART_PAD.top - CHART_PAD.bottom;
 
 function ActiveWorkersChart({ data }: { data: ChartDataPoint[] }) {
@@ -293,14 +293,15 @@ function ActiveWorkersChart({ data }: { data: ChartDataPoint[] }) {
             yKeys={["workers"]}
             padding={CHART_PAD}
             domain={{ y: [0, yMax] }}
+            domainPadding={{ left: 20, right: 20 }}
             chartPressState={pressState}
             chartPressConfig={{ pan: { activateAfterLongPress: 0 } }}
             axisOptions={{
               formatXLabel: () => "",
               formatYLabel: () => "",
+              tickCount: 7,
+              lineColor: "transparent",
               lineWidth: 0,
-              tickCount: 0,
-      
             }}
           >
             {({ points, chartBounds }) => {
@@ -308,21 +309,17 @@ function ActiveWorkersChart({ data }: { data: ChartDataPoint[] }) {
               const innerH = bottom - top;
               return (
                 <>
-                  {/* Light gray horizontal grid lines */}
-                  {Array.from({ length: Y_TICKS + 1 }, (_, i) => {
-                    const y = top + (innerH / Y_TICKS) * i;
-                    return (
-                      <SkiaLine
-                        key={i}
-                        p1={{ x: left, y }}
-                        p2={{ x: right, y }}
-                        color="#E5E5E5"
-                        strokeWidth={0.5}
-                      />
-                    );
-                  })}
-                  <Line points={points.workers} color="#767676" strokeWidth={1} />
-                  <Scatter points={points.workers} shape="circle" radius={3} color="#767676" />
+                  {Array.from({ length: Y_TICKS + 1 }, (_, i) => (
+                    <SkiaLine
+                      key={i}
+                      p1={{ x: left, y: top + (innerH / Y_TICKS) * i }}
+                      p2={{ x: right , y: top + (innerH / Y_TICKS) * i }}
+                      color="#E5E5E5"
+                      strokeWidth={0.5}
+                    />
+                  ))}
+                  <Line points={points.workers} color="#333333" strokeWidth={1.2} />
+                  <Scatter points={points.workers} shape="circle" radius={3.5} color="#71717A" />
                 </>
               );
             }}
@@ -342,7 +339,7 @@ function ActiveWorkersChart({ data }: { data: ChartDataPoint[] }) {
                 textAlign: "right",
                 fontSize: 10,
                 lineHeight: 12,
-                color: "#767676",
+                color: "#71717A",
                 pointerEvents: "none",
               }}
             >
@@ -369,6 +366,23 @@ function ActiveWorkersChart({ data }: { data: ChartDataPoint[] }) {
             <Text style={{ fontSize: 11, lineHeight: 14, color: "#FFFFFF", fontWeight: "500" }}>
               {Math.round(tooltip.value)}
             </Text>
+          </View>
+        )}
+        {/* X-axis date labels */}
+        {!isWeb && (
+          <View
+            style={{
+              position: "absolute",
+              bottom: 4,
+              left: CHART_PAD.left,
+              right: CHART_PAD.right,
+              flexDirection: "row",
+              justifyContent: "space-between",
+            }}
+          >
+            {data.map((d) => (
+              <Text key={d.date} style={{ fontSize: 11, color: "#9CA3AF" }}>{d.date}</Text>
+            ))}
           </View>
         )}
       </View>
@@ -488,7 +502,7 @@ export default function DashboardScreen() {
 
           {/* Alert banner — shown only when there are active alerts */}
           {counts.alert > 0 && (
-            <View className="mt-6 overflow-hidden rounded-2xl bg-tint-alert-banner px-4 py-4">
+            <View className="mt-6 overflow-hidden rounded-inner-card bg-tint-alert-banner px-4 py-4">
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-1 rounded-xl bg-primary px-2 py-1.5">
                   <Text className="text-base font-medium text-white">Live</Text>
@@ -498,8 +512,8 @@ export default function DashboardScreen() {
                   className="flex-row items-center opacity-80"
                   onPress={() => setSelectedCategory("alert")}
                 >
-                  <Text className="text-caption text-xs">Näytä tiedot</Text>
-                  <Text className="text-caption ml-0.5 text-xs">›</Text>
+                  <Text className="text-secondary text-xs">Näytä tiedot</Text>
+                  <Text className="text-secondary ml-0.5 text-xs">›</Text>
                 </TouchableOpacity>
               </View>
               <Text className="mt-4 text-base text-primary">
@@ -521,8 +535,8 @@ export default function DashboardScreen() {
               className="flex-row items-center"
               onPress={() => router.push("/live-map")}
             >
-              <Text className="text-caption text-xs">Live kartta</Text>
-              <Text className="text-caption ml-0.5 text-xs">›</Text>
+              <Text className="text-secondary text-xs">Live kartta</Text>
+              <Text className="text-secondary ml-0.5 text-xs">›</Text>
             </TouchableOpacity>
           </View>
 
@@ -530,12 +544,12 @@ export default function DashboardScreen() {
           <View className="mt-4 flex-row flex-wrap gap-3">
             <TouchableOpacity
               activeOpacity={0.7}
-              className="overflow-hidden rounded-2xl bg-background-card p-3 flex-row justify-between items-start"
+              className="overflow-hidden rounded-inner-card bg-background-card p-3 flex-row justify-between items-start"
               style={{ flexBasis: "47%", flexGrow: 1, minWidth: 0 }}
               onPress={() => setSelectedCategory("active")}
             >
               <View>
-                <Text className="text-caption text-xs">Aktiivisena nyt</Text>
+                <Text className="text-secondary text-xs">Aktiivisena nyt</Text>
                 <Text className="mt-1 text-3xl font-bold tracking-tight text-state-active">
                   {counts.active}
                 </Text>
@@ -545,12 +559,12 @@ export default function DashboardScreen() {
 
             <TouchableOpacity
               activeOpacity={0.7}
-              className="overflow-hidden rounded-2xl bg-background-card p-3 flex-row justify-between items-start"
+              className="overflow-hidden rounded-inner-card bg-background-card p-3 flex-row justify-between items-start"
               style={{ flexBasis: "47%", flexGrow: 1, minWidth: 0 }}
               onPress={() => setSelectedCategory("completed")}
             >
               <View>
-                <Text className="text-caption text-xs">Valmiit</Text>
+                <Text className="text-secondary text-xs">Valmiit</Text>
                 <Text className="mt-1 text-3xl font-bold tracking-tight text-primary">
                   {counts.completed}
                 </Text>
@@ -560,12 +574,12 @@ export default function DashboardScreen() {
 
             <TouchableOpacity
               activeOpacity={0.7}
-              className="overflow-hidden rounded-2xl bg-background-card p-3 flex-row justify-between items-start"
+              className="overflow-hidden rounded-inner-card bg-background-card p-3 flex-row justify-between items-start"
               style={{ flexBasis: "47%", flexGrow: 1, minWidth: 0 }}
               onPress={() => setSelectedCategory("delayed")}
             >
               <View>
-                <Text className="text-caption text-xs">Myöhästyneitä</Text>
+                <Text className="text-secondary text-xs">Myöhästyneitä</Text>
                 <Text className="mt-1 text-3xl font-bold tracking-tight text-state-grace">
                   {counts.delayed}
                 </Text>
@@ -575,12 +589,12 @@ export default function DashboardScreen() {
 
             <TouchableOpacity
               activeOpacity={0.7}
-              className="overflow-hidden rounded-2xl bg-background-card p-3 flex-row justify-between items-start"
+              className="overflow-hidden rounded-inner-card bg-background-card p-3 flex-row justify-between items-start"
               style={{ flexBasis: "47%", flexGrow: 1, minWidth: 0 }}
               onPress={() => setSelectedCategory("alert")}
             >
               <View>
-                <Text className="text-caption text-xs">Hälytystilassa</Text>
+                <Text className="text-secondary text-xs">Hälytystilassa</Text>
                 <Text className="mt-1 text-3xl font-bold tracking-tight text-state-critical">
                   {counts.alert}
                 </Text>
@@ -593,7 +607,7 @@ export default function DashboardScreen() {
           <View className="mt-8">
             <View className="flex-row items-center justify-between">
               <Text className="text-xl text-primary">Aktiiviset työntekijät</Text>
-              <Text className="text-caption text-xs">7 Päivää</Text>
+              <Text className="text-secondary text-xs">7 Päivää</Text>
             </View>
           </View>
         </View>

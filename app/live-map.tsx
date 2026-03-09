@@ -144,6 +144,7 @@ function FocusWorkerCard({
   hideNavBar = false,
   onClose,
   onInfo,
+  onPress,
 }: {
   worker: WorkerOnMap;
   category: LiveMapCategory;
@@ -155,13 +156,17 @@ function FocusWorkerCard({
   hideNavBar?: boolean;
   onClose?: () => void;
   onInfo?: () => void;
+  onPress?: () => void;
 }) {
   const navLabel = CATEGORY_NAV_LABEL[category];
   const phoneBgClass = PHONE_BUTTON_BG_CLASS[category];
   const subtitle = [worker.employeeId, worker.team].filter(Boolean).join(" | ") || worker.workerId;
   return (
-    <View
-      className="rounded-xl bg-background-primary p-4 border border-gray-200/80"
+    <TouchableOpacity
+      activeOpacity={0.95}
+      onPress={onPress}
+      disabled={!onPress}
+      className="rounded-inner-card bg-background-primary p-4 border border-gray-200/80"
       style={{
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
@@ -171,6 +176,7 @@ function FocusWorkerCard({
       }}
     >
       <View className="flex-row items-center mb-3">
+        
         <Image
           source={{ uri: worker.avatar || "https://placehold.co/72x72" }}
           className="w-14 h-14 rounded-full bg-background-card"
@@ -178,11 +184,11 @@ function FocusWorkerCard({
         />
         <View className="flex-1 ml-3">
           <Text className="text-base font-semibold text-labels-primary">{worker.name}</Text>
-          <Text className="text-xs text-caption mt-0.5">{subtitle}</Text>
+          <Text className="text-xs text-secondary mt-0.5">{subtitle}</Text>
         </View>
         {hideNavBar && onClose && (
           <TouchableOpacity onPress={onClose} className="p-2 mr-1" hitSlop={8}>
-            <IconClose width={28} height={28} color="#404040" />
+            <IconClose width={28} height={28} color="#333333" />
           </TouchableOpacity>
         )}
         <TouchableOpacity
@@ -196,7 +202,7 @@ function FocusWorkerCard({
       <View className="h-px bg-gray-300/50 my-2" />
       <View className="flex-row items-start">
         <View className="flex-1">
-          <Text className="text-xs text-caption mb-1">Turvakontakti</Text>
+          <Text className="text-xs text-secondary mb-1">Turvakontakti</Text>
           <View className="flex-row items-center gap-1">
             {worker.safetyContact?.avatar ? (
               <Image
@@ -212,12 +218,12 @@ function FocusWorkerCard({
           </View>
         </View>
         <View className="items-end">
-          <Text className="text-xs text-caption mb-1">Myöhässä</Text>
+          <Text className="text-xs text-secondary mb-1">Myöhässä</Text>
           <View className="flex-row items-center gap-1">
             {worker.lateMinutes != null ? (
               <Text className="text-base font-medium text-state-critical">{worker.lateMinutes} min</Text>
             ) : (
-              <Text className="text-base text-caption">—</Text>
+              <Text className="text-base text-secondary">—</Text>
             )}
             {onInfo && (
               <TouchableOpacity onPress={onInfo} hitSlop={8} style={{ marginLeft: 4 }}>
@@ -258,7 +264,7 @@ function FocusWorkerCard({
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -277,12 +283,12 @@ function WorkerInfoCard({
       <View className="flex-row items-center justify-between mb-3">
         <Text className="text-lg font-semibold text-primary">{worker.name}</Text>
         <TouchableOpacity onPress={onClose} hitSlop={12} className="px-2 py-1">
-          <Text className="text-caption text-base">✕</Text>
+          <Text className="text-secondary text-base">✕</Text>
         </TouchableOpacity>
       </View>
-      <Text className="text-caption text-sm mb-1">Työntekijänumero</Text>
+      <Text className="text-secondary text-sm mb-1">Työntekijänumero</Text>
       <Text className="text-base text-primary mb-3">{worker.workerId}</Text>
-      <Text className="text-caption text-sm mb-1">Tila</Text>
+      <Text className="text-secondary text-sm mb-1">Tila</Text>
       <Text className={`text-base font-medium mb-4 ${statusClass}`}>
         {STATUS_LABEL[worker.status]}
       </Text>
@@ -440,13 +446,13 @@ export default function LiveMapScreen() {
       <SafeAreaView className="flex-1 bg-background-primary" edges={["top"]}>
         <View className="flex-row items-center justify-between px-4 py-3 border-b border-gray-200">
           <TouchableOpacity onPress={handleBack} className="p-2" hitSlop={8}>
-            <IconClose width={36} height={36} color="#404040" />
+            <IconClose width={36} height={36} color="#333333" />
           </TouchableOpacity>
           <Text className="text-xl font-bold text-primary">Live Kartta</Text>
           <View style={{ width: 40 }} />
         </View>
         <View className="flex-1 items-center justify-center p-6">
-          <Text className="text-caption text-center">
+          <Text className="text-secondary text-center">
             Kartta on käytettävissä vain sovellusversiossa (iOS/Android).
           </Text>
         </View>
@@ -470,7 +476,7 @@ export default function LiveMapScreen() {
               key={stat.key}
               activeOpacity={0.8}
               onPress={() => handleStatCardPress(stat.key)}
-              className="flex-1 min-h-16 rounded-xl overflow-hidden justify-center items-center p-3"
+              className="flex-1 min-h-16 rounded-inner-card overflow-hidden justify-center items-center p-3"
               style={{
                 backgroundColor: selectedCategory === stat.key ? "#FFFFFF" : "#F5F5F5",
                 shadowColor: "#000",
@@ -533,18 +539,17 @@ export default function LiveMapScreen() {
 
       {selectedCategory && currentFocusWorker && (
         <View className="absolute left-4 right-4 bottom-28" pointerEvents="box-none">
-          <TouchableOpacity activeOpacity={0.95} onPress={() => focusOnWorker(currentFocusWorker)}>
-            <FocusWorkerCard
-              worker={currentFocusWorker}
-              category={selectedCategory}
-              index={categoryWorkerIndex}
-              total={categoryWorkers.length}
-              onCall={handleCategoryCall}
-              onPrev={handlePrevWorker}
-              onNext={handleNextWorker}
-              onInfo={() => router.push(`/history-details?id=${currentFocusWorker.sessionId}`)}
-            />
-          </TouchableOpacity>
+          <FocusWorkerCard
+            worker={currentFocusWorker}
+            category={selectedCategory}
+            index={categoryWorkerIndex}
+            total={categoryWorkers.length}
+            onCall={handleCategoryCall}
+            onPrev={handlePrevWorker}
+            onNext={handleNextWorker}
+            onInfo={() => router.push(`/history-details?id=${currentFocusWorker.sessionId}`)}
+            onPress={() => focusOnWorker(currentFocusWorker)}
+          />
         </View>
       )}
 
@@ -557,7 +562,7 @@ export default function LiveMapScreen() {
             key={stat.key}
             activeOpacity={0.8}
             onPress={() => handleStatCardPress(stat.key)}
-            className="flex-1 min-h-16 rounded-xl overflow-hidden justify-center items-center p-3"
+            className="flex-1 min-h-16 rounded-inner-card overflow-hidden justify-center items-center p-3"
             style={{
               backgroundColor: selectedCategory === stat.key ? "#FFFFFF" : "#F5F5F5",
               shadowColor: "#000",
@@ -579,19 +584,18 @@ export default function LiveMapScreen() {
 
       {selectedWorker && !selectedCategory && (
         <View className="absolute left-4 right-4 bottom-28" pointerEvents="box-none">
-          <TouchableOpacity activeOpacity={0.95} onPress={() => focusOnWorker(selectedWorker)}>
-            <FocusWorkerCard
-              worker={selectedWorker}
-              category={statusToCategory(selectedWorker.status)}
-              index={0}
-              total={1}
-              onCall={handleContact}
-              onPrev={() => {}}
-              onNext={() => {}}
-              hideNavBar
-              onInfo={() => router.push(`/history-details?id=${selectedWorker.sessionId}`)}
-            />
-          </TouchableOpacity>
+          <FocusWorkerCard
+            worker={selectedWorker}
+            category={statusToCategory(selectedWorker.status)}
+            index={0}
+            total={1}
+            onCall={handleContact}
+            onPrev={() => {}}
+            onNext={() => {}}
+            hideNavBar
+            onInfo={() => router.push(`/history-details?id=${selectedWorker.sessionId}`)}
+            onPress={() => focusOnWorker(selectedWorker)}
+          />
         </View>
       )}
     </SafeAreaView>

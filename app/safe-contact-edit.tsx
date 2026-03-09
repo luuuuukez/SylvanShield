@@ -15,74 +15,9 @@ import { Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import Svg, { Path } from "react-native-svg";
 import { ScreenHeader } from "../src/components/ScreenHeader";
-
-function TrashIcon() {
-  return (
-    <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
-      <Path
-        d="M3 5H17"
-        stroke="#EF4444"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M8 5V3H12V5"
-        stroke="#EF4444"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M5 5L6 17H14L15 5"
-        stroke="#EF4444"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M10 9V14"
-        stroke="#EF4444"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
-      <Path
-        d="M7.5 9L7.5 14"
-        stroke="#EF4444"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
-      <Path
-        d="M12.5 9L12.5 14"
-        stroke="#EF4444"
-        strokeWidth={1.5}
-        strokeLinecap="round"
-      />
-    </Svg>
-  );
-}
+import { IconTrash, IconCameraOverlay } from "../src/components/icons";
 import { supabase } from "../src/lib/supabase";
-
-function CameraIcon() {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 16 16" fill="none">
-      <Path
-        d="M13 13H3C2.73478 13 2.48043 12.8946 2.29289 12.7071C2.10536 12.5196 2 12.2652 2 12V5C2 4.73478 2.10536 4.48043 2.29289 4.29289C2.48043 4.10536 2.73478 4 3 4H4.99963L5.99963 2.5H9.99963L10.9996 4H13C13.2652 4 13.5196 4.10536 13.7071 4.29289C13.8946 4.48043 14 4.73478 14 5V12C14 12.2652 13.8946 12.5196 13.7071 12.7071C13.5196 12.8946 13.2652 13 13 13Z"
-        stroke="white"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M8 10.5C9.24264 10.5 10.25 9.49264 10.25 8.25C10.25 7.00736 9.24264 6 8 6C6.75736 6 5.75 7.00736 5.75 8.25C5.75 9.49264 6.75736 10.5 8 10.5Z"
-        stroke="white"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
 
 function FormField({
   label,
@@ -99,7 +34,7 @@ function FormField({
 }) {
   return (
     <View className="gap-2">
-      <Text className="text-xs text-caption leading-4">{label}</Text>
+      <Text className="text-xs text-secondary leading-4">{label}</Text>
       <TextInput
         value={value}
         onChangeText={onChangeText}
@@ -235,7 +170,7 @@ export default function SafeContactEditScreen() {
         rightAction={
           isEditing ? (
             <TouchableOpacity onPress={handleDelete} hitSlop={8}>
-              <TrashIcon />
+              <IconTrash />
             </TouchableOpacity>
           ) : undefined
         }
@@ -286,7 +221,7 @@ export default function SafeContactEditScreen() {
                       justifyContent: "center",
                     }}
                   >
-                    <CameraIcon />
+                    <IconCameraOverlay />
                   </TouchableOpacity>
                 </View>
               </View>
