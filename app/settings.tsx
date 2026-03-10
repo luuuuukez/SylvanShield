@@ -8,7 +8,7 @@ import { supabase } from "../src/lib/supabase";
 // TODO: implement i18n
 type Language = "fi" | "en";
 
-const BRAND_PRIMARY = "#FFAE23";
+const BRAND_PRIMARY = "#9BDA53";
 
 function RadioButton({
   selected,

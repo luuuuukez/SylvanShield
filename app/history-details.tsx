@@ -175,7 +175,7 @@ function Timeline({ events }: { events: TimelineEvent[] }) {
               <Text style={{ fontSize: 16, lineHeight: 20, color: "#27272A" }}>{event.label}</Text>
               {event.subtitle && (
                 <Text
-                  style={{ fontSize: 12, lineHeight: 16, color: "#9CA3AF", marginTop: 4, width: "85%" }}
+                  style={{ fontSize: 12, lineHeight: 16, color: "#B0B3BA", marginTop: 4, width: "85%" }}
                 >
                   {event.subtitle}
                 </Text>
@@ -389,7 +389,7 @@ export default function HistoryDetailsScreen() {
             <Text style={{ fontSize: 16, lineHeight: 20, color: "#27272A" }}>
               {contact?.name ?? "—"}
             </Text>
-            <Text style={{ fontSize: 12, lineHeight: 16, color: "#9CA3AF", marginTop: 2 }}>
+            <Text style={{ fontSize: 12, lineHeight: 16, color: "#B0B3BA", marginTop: 2 }}>
               {contact?.phone ?? ""}
             </Text>
           </View>

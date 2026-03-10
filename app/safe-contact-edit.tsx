@@ -188,7 +188,7 @@ export default function SafeContactEditScreen() {
         >
           {loading ? (
             <View className="items-center justify-center py-20">
-              <ActivityIndicator size="large" color="#9CA3AF" />
+              <ActivityIndicator size="large" color="#B0B3BA" />
             </View>
           ) : (
             <>
@@ -252,7 +252,7 @@ export default function SafeContactEditScreen() {
                 <Switch
                   value={isPrimary}
                   onValueChange={setIsPrimary}
-                  trackColor={{ false: "#E5E5E5", true: "#FFAE23" }}
+                  trackColor={{ false: "#E5E5E5", true: "#9BDA53" }}
                   thumbColor="#FFFFFF"
                 />
               </View>

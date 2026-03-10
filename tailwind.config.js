@@ -16,22 +16,18 @@ module.exports = {
         "labels-primary": "#000000",
         primary: "#27272A",
         // Gray text scale — 2 tokens replacing 4 near-identical grays
-        secondary: "#9CA3AF",   // captions, inactive tab labels, hints
-        tertiary: "#71717A",    // chart axis, profile subtitle, muted axis labels
+        secondary: "#B0B3BA",   // captions, inactive tab labels, hints, chart axis, profile subtitle
         "tab-selected": "#000000",
         "icon-primary": "#333333",
         "weather-sun": "#EDA36E",
         "weather-cloud": "#8AA2D7",
         "status-button": "#27272A",
-        "tint-active": "#ECFDF5",
+        "tint-active": "#EEFAE8",
         "tint-grace": "#FEF2F2",
         "tint-critical": "#FFF1F2",
-        "state-active": "#10B981",
+        "state-active": "#5FB537",
         "state-grace": "#FB923C",
         "state-critical": "#EF4444",
-        "border-state-active": "#DCFCE7",
-        "border-state-grace": "#FFEDD5",
-        "border-state-critical": "#FFE4E6",
         // Unified orange — same value as state-grace
         alert: "#FB923C",
         overlay: "rgba(0, 0, 0, 0.4)",
@@ -43,7 +39,7 @@ module.exports = {
         "status-warning": "#EF4444",
         "chevron-muted": "#B0B3BA",
         separator: "#E5E5E5",
-        "brand-primary": "#FFAE23",
+        "brand-primary": "#9BDA53",
       },
       borderRadius: {
         card: "20px",

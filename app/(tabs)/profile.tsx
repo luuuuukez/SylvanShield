@@ -92,7 +92,7 @@ export default function ProfileScreen() {
       <View className="px-6 mt-8 flex-row items-center gap-4">
         {loading ? (
           <View className="w-16 h-16 rounded-full bg-background-card items-center justify-center">
-            <ActivityIndicator size="small" color="#9CA3AF" />
+            <ActivityIndicator size="small" color="#B0B3BA" />
           </View>
         ) : (
           <Image
@@ -105,7 +105,7 @@ export default function ProfileScreen() {
           <Text className="text-xl font-normal leading-6 text-primary">
             {loading ? "Ladataan..." : displayName}
           </Text>
-          <Text className="text-base font-normal leading-5 text-tertiary">
+          <Text className="text-base font-normal leading-5 text-secondary">
             {loading ? "" : displayRole}
           </Text>
         </View>

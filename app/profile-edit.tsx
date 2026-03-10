@@ -56,6 +56,7 @@ export default function ProfileEditScreen() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
   const [avatarUri, setAvatarUri] = useState<string>("https://placehold.co/112x112");
   const [name, setName] = useState("");
@@ -87,14 +88,45 @@ export default function ProfileEditScreen() {
   }, []);
 
   const pickImage = async () => {
+    if (!userId) return;
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
-    if (!result.canceled && result.assets[0]) {
-      setAvatarUri(result.assets[0].uri);
+
+    if (result.canceled || !result.assets[0]) return;
+
+    const uri = result.assets[0].uri;
+    setUploading(true);
+
+    try {
+      const blob = await fetch(uri).then((r) => r.blob());
+      const path = `${userId}/avatar.jpg`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("avatars")
+        .upload(path, blob, { upsert: true, contentType: "image/jpeg" });
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from("avatars").getPublicUrl(path);
+      const publicUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from("profiles")
+        .update({ avatar_url: publicUrl })
+        .eq("id", userId);
+
+      if (updateError) throw updateError;
+
+      setAvatarUri(publicUrl);
+    } catch {
+      Alert.alert("Virhe", "Kuvan lataaminen epäonnistui. Yritä uudelleen.");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -132,7 +164,7 @@ export default function ProfileEditScreen() {
         >
           {loading ? (
             <View className="flex-1 items-center justify-center py-20">
-              <ActivityIndicator size="large" color="#9CA3AF" />
+              <ActivityIndicator size="large" color="#B0B3BA" />
             </View>
           ) : (
             <>
@@ -152,6 +184,7 @@ export default function ProfileEditScreen() {
                   />
                   <TouchableOpacity
                     onPress={pickImage}
+                    disabled={uploading}
                     activeOpacity={0.8}
                     style={{
                       position: "absolute",
@@ -163,9 +196,14 @@ export default function ProfileEditScreen() {
                       backgroundColor: "#27272A",
                       alignItems: "center",
                       justifyContent: "center",
+                      opacity: uploading ? 0.5 : 1,
                     }}
                   >
-                    <IconCameraOverlay />
+                    {uploading ? (
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                      <IconCameraOverlay />
+                    )}
                   </TouchableOpacity>
                 </View>
               </View>
