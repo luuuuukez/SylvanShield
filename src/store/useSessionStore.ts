@@ -93,6 +93,7 @@ export const useSessionStore = create<SessionState>()((set, get) => ({
   },
 
   transitionToGracePeriod: () => {
+    if (get().status !== "ACTIVE") return;
     set({ status: "GRACE_PERIOD" });
     const { sessionId } = get();
     if (!sessionId) return;
