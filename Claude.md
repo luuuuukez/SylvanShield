@@ -110,7 +110,7 @@ Full visual reference: `design-spec.html`
 
 | Token | Hex | Usage |
 |-------|-----|-------|
-| `brand-primary` | #FFAE23 | Brand accent, toggle active |
+| `brand-primary` | #9BDA53 | Brand accent, toggle active |
 
 ### Colors — Backgrounds
 
@@ -120,7 +120,7 @@ Full visual reference: `design-spec.html`
 | `bg-background-card` | #F5F5F5 | Card surfaces, history items |
 | `bg-status-button` | #27272A | Primary CTA (Aloita) |
 | `bg-overlay` | rgba(0,0,0,0.4) | Modal backdrop |
-| `bg-tint-active` | #ECFDF5 | Active session card bg |
+| `bg-tint-active` | #EEFAE8 | Active session card bg |
 | `bg-tint-grace` | #FEF2F2 | Grace period card bg |
 | `bg-tint-critical` | #FFF1F2 | Alert sent card bg |
 | `bg-tint-alert-banner` | #FFF7ED | Dashboard alert banner |
@@ -131,28 +131,27 @@ Full visual reference: `design-spec.html`
 |-------|-----|-------|
 | `text-labels-primary` | #000000 | Primary labels |
 | `text-primary` | #27272A | Body text |
-| `text-secondary` | #9CA3AF | Captions, inactive labels |
-| `text-tertiary` | #71717A | Chart axis, profile subtitle |
-| `text-state-active` | #10B981 | Active session text |
+| `text-secondary` | #B0B3BA | Captions, inactive labels, chart axis, profile subtitle |
+| `text-state-active` | #5FB537 | Active session text |
 | `text-state-grace` | #FB923C | Grace period text |
 | `text-state-critical` | #EF4444 | Alert state text |
 | `text-alert` | #FB923C | Modal title, alert icon (unified with state-grace) |
-| `text-status-safe` | #10B981 | "Kuitannut ulos turvallisesti" |
+| `text-status-safe` | #5FB537 | "Kuitannut ulos turvallisesti" |
 | `text-status-warning` | #EF4444 | "Hälytys lähetetty" |
 
 ### Colors — Session States
 
-| State | Card bg | Title | Button bg | Button border |
-|-------|---------|-------|-----------|---------------|
-| ACTIVE | `bg-tint-active` | `text-state-active` | `bg-state-active` | `border-state-active` |
-| GRACE_PERIOD | `bg-tint-grace` | `text-state-grace` | `bg-state-grace` | `border-state-grace` |
-| ALERT_SENT | `bg-tint-critical` | `text-state-critical` | `bg-state-critical` | `border-state-critical` |
+| State | Card bg | Title | Button bg |
+|-------|---------|-------|-----------|
+| ACTIVE | `bg-tint-active` | `text-state-active` | `bg-state-active` |
+| GRACE_PERIOD | `bg-tint-grace` | `text-state-grace` | `bg-state-grace` |
+| ALERT_SENT | `bg-tint-critical` | `text-state-critical` | `bg-state-critical` |
 
 | Token | Hex |
 |-------|-----|
-| `bg-state-active` / `border-state-active` | #10B981 / #DCFCE7 |
-| `bg-state-grace` / `border-state-grace` | #FB923C / #FFEDD5 |
-| `bg-state-critical` / `border-state-critical` | #EF4444 / #FFE4E6 |
+| `bg-state-active` | #5FB537 |
+| `bg-state-grace` | #FB923C |
+| `bg-state-critical` | #EF4444 |
 
 ### Colors — Icons & UI
 

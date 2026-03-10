@@ -209,7 +209,7 @@ function ChartPlaceholder({ data }: { data: ChartDataPoint[] }) {
       </Text>
       <View className="mt-3 flex-row flex-wrap justify-center gap-2">
         {data.map((d) => (
-          <Text key={d.date} className="text-tertiary text-xs">
+          <Text key={d.date} className="text-secondary text-xs">
             {d.date}: {d.workers}
           </Text>
         ))}
@@ -319,7 +319,7 @@ function ActiveWorkersChart({ data }: { data: ChartDataPoint[] }) {
                     />
                   ))}
                   <Line points={points.workers} color="#333333" strokeWidth={1.2} />
-                  <Scatter points={points.workers} shape="circle" radius={3.5} color="#71717A" />
+                  <Scatter points={points.workers} shape="circle" radius={3.5} color="#B0B3BA" />
                 </>
               );
             }}
@@ -339,7 +339,7 @@ function ActiveWorkersChart({ data }: { data: ChartDataPoint[] }) {
                 textAlign: "right",
                 fontSize: 10,
                 lineHeight: 12,
-                color: "#71717A",
+                color: "#B0B3BA",
                 pointerEvents: "none",
               }}
             >
@@ -381,7 +381,7 @@ function ActiveWorkersChart({ data }: { data: ChartDataPoint[] }) {
             }}
           >
             {data.map((d) => (
-              <Text key={d.date} style={{ fontSize: 11, color: "#9CA3AF" }}>{d.date}</Text>
+              <Text key={d.date} style={{ fontSize: 11, color: "#B0B3BA" }}>{d.date}</Text>
             ))}
           </View>
         )}

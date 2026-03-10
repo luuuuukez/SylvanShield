@@ -138,12 +138,6 @@ function StateButtonGlow({
       : status === "GRACE_PERIOD"
         ? "bg-state-grace"
         : "bg-state-critical";
-  const borderToken =
-    status === "ACTIVE"
-      ? "border-state-active"
-      : status === "GRACE_PERIOD"
-        ? "border-state-grace"
-        : "border-state-critical";
   const shadowToken =
     status === "ACTIVE"
       ? "shadow-state-active"
@@ -168,7 +162,7 @@ function StateButtonGlow({
         onPress={onPress}
         onPressIn={onPressIn}
         onPressOut={onPressOut}
-        className={`h-60 w-36 items-center justify-center rounded-button border-[1.5px] ${borderToken} ${bgToken} ${shadowToken}`}
+        className={`h-60 w-36 items-center justify-center rounded-button border-transparent ${bgToken} ${shadowToken}`}
         style={{ overflow: "hidden" }}
       >
         {children}
@@ -189,9 +183,13 @@ export default function WorkScreen() {
   } = useSessionStore();
   const [showShiftEndModal, setShowShiftEndModal] = useState(false);
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
 
   const shiftEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const gracePeriodTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const locationWatcherRef = useRef<Location.LocationSubscription | null>(null);
+
+  const [locationLabel, setLocationLabel] = useState<string>("Sijainti tuntematon");
 
   const clearShiftEndTimer = () => {
     if (shiftEndTimerRef.current != null) {
@@ -364,6 +362,55 @@ export default function WorkScreen() {
     return () => clearInterval(id);
   }, [status, endHour, endMin]);
 
+  useEffect(() => {
+    if (status === "IDLE") {
+      locationWatcherRef.current?.remove();
+      locationWatcherRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+
+    async function startWatching() {
+      const { status: perm } = await Location.requestForegroundPermissionsAsync();
+      if (perm !== "granted" || cancelled) return;
+
+      locationWatcherRef.current = await Location.watchPositionAsync(
+        {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 30000,
+          distanceInterval: 50,
+        },
+        async (pos) => {
+          const { latitude, longitude } = pos.coords;
+
+          if (sessionId) {
+            await supabase
+              .from("work_sessions")
+              .update({ last_known_latitude: latitude, last_known_longitude: longitude })
+              .eq("id", sessionId);
+          }
+
+          try {
+            const [geo] = await Location.reverseGeocodeAsync({ latitude, longitude });
+            const label = geo?.district ?? geo?.subregion ?? geo?.city ?? null;
+            setLocationLabel(label ?? "Sijainti tuntematon");
+          } catch {
+            // keep previous label
+          }
+        }
+      );
+    }
+
+    void startWatching();
+
+    return () => {
+      cancelled = true;
+      locationWatcherRef.current?.remove();
+      locationWatcherRef.current = null;
+    };
+  }, [status, sessionId]);
+
   const fillProgress = useSharedValue(0);
   const fillAnimStyle = useAnimatedStyle(() => ({
     height: fillProgress.value,
@@ -444,7 +491,7 @@ export default function WorkScreen() {
           {/* Location row (above button for ACTIVE/GRACE/ALERT per design) */}
           <View className="mt-6 flex-row items-center justify-center gap-1">
             <IconLocationPin color="#333333" />
-            <Text className="text-base text-primary">Kuhasalo</Text>
+            <Text className="text-base text-primary">{locationLabel}</Text>
           </View>
 
           {/* Button area */}
@@ -462,7 +509,7 @@ export default function WorkScreen() {
             )}
 
             {status === "ACTIVE" && (
-              <StateButtonGlow status="ACTIVE">
+              <StateButtonGlow status="ACTIVE" onPress={() => setShowSignOutModal(true)}>
                 <Text className="text-center text-base text-white">
                   Kuittaa Ulos
                 </Text>
@@ -493,7 +540,7 @@ export default function WorkScreen() {
                       bottom: 0,
                       left: 0,
                       right: 0,
-                      backgroundColor: "#EF4444",
+                      backgroundColor: "#DA2C2C",
                     },
                     fillAnimStyle,
                   ]}
@@ -590,6 +637,45 @@ export default function WorkScreen() {
           </View>
         </View>
       </View>
+
+      {/* Sign-out confirmation modal (ACTIVE state) */}
+      <Modal
+        visible={showSignOutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSignOutModal(false)}
+      >
+        <View className="flex-1 bg-overlay justify-center items-center px-6">
+          <View className="w-80 overflow-hidden rounded-modal bg-white">
+            <Text className="mt-9 text-center text-xl font-bold text-primary px-8">
+              Haluatko kirjautua ulos?
+            </Text>
+            <Text className="mt-3 text-center text-base text-primary px-8">
+              Työvuoro merkitään päättyneeksi.
+            </Text>
+            <View className="px-10 pt-8 pb-10 gap-4">
+              <TouchableOpacity
+                onPress={() => { setShowSignOutModal(false); stopSession(); }}
+                activeOpacity={0.8}
+                className="h-14 w-60 items-center justify-center self-center rounded-button bg-black"
+                accessibilityRole="button"
+                accessibilityLabel="Kirjaudu ulos"
+              >
+                <Text className="text-base text-white">Kirjaudu ulos</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setShowSignOutModal(false)}
+                activeOpacity={0.8}
+                className="h-14 w-60 items-center justify-center self-center rounded-button border border-black bg-white"
+                accessibilityRole="button"
+                accessibilityLabel="Peruuta"
+              >
+                <Text className="text-base text-primary">Peruuta</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Emergency alert confirmation modal */}
       <Modal

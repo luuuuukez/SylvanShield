@@ -173,7 +173,7 @@ export default function SafeContactsScreen() {
 
       {loading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator size="large" color="#9CA3AF" />
+          <ActivityIndicator size="large" color="#B0B3BA" />
         </View>
       ) : (
         <ScrollView
