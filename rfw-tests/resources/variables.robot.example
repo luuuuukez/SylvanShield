@@ -1,0 +1,7 @@
+*** Variables ***
+${BASE_URL}         https://rphrygozptktcbklmvxa.supabase.co
+${ANON_KEY}         YOUR_SUPABASE_ANON_KEY_HERE
+${SESSION_ID}       YOUR_ACTIVE_SESSION_ID_HERE
+${EDGE_FUNC_URL}    ${BASE_URL}/functions/v1/send-alert
+${REST_URL}         ${BASE_URL}/rest/v1
+${WEATHER_URL}      https://api.open-meteo.com/v1/forecast
