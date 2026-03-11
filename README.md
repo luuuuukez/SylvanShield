@@ -17,9 +17,9 @@ react-native-maps, expo-location
 - Resend (transactional email)
 
 ### Testing
-- Manual test cases (46 test cases across 8 modules)
+- [Manual Test Cases](docs/TEST_CASES.md) (46 test cases across 8 modules)
 - Jest unit tests (14 tests, useSessionStore state machine)
-- Robot Framework API tests (Supabase Edge Function)
+- [Robot Framework API tests](rfw-tests/README.md)
 - CI via GitHub Actions
 
 ## Features
