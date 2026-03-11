@@ -44,3 +44,7 @@ yarn-error.*
 # design
 temp_figma
 design-audit.html
+
+# robot framework
+variables.robot
+rfw-tests/results/
