@@ -6,8 +6,8 @@ A mobile safety check-in app for lone forest workers in Finland. Workers start a
 Built as a learning project to understand the full product development lifecycle, from design to testing. AI-assisted development using Claude/Cursor.
 
 ## Demo
-<p align="center">
-  <img src="demo/demo.gif" width="700"/>
+<p align="left">
+  <img src="demo/demo.gif" width="180"/>
 </p>
 
 ## Architecture
