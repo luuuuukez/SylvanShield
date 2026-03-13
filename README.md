@@ -5,6 +5,52 @@ A mobile safety check-in app for lone forest workers in Finland. Workers start a
 
 Built as a learning project to understand the full product development lifecycle, from design to testing. AI-assisted development using Claude/Cursor.
 
+## Demo
+<p align="center">
+  <img src="demo/demo.gif" width="700"/>
+</p>
+
+## Architecture
+```mermaid
+flowchart LR
+  %% SylvanShield Architecture
+
+  subgraph Mobile["Mobile App (React Native + Expo)"]
+    UI["Screens (expo-router)\nDashboard, Check-in, History, Profile, Live Map"]
+    State["State & Data\nZustand + TanStack Query"]
+    Maps["GPS & Maps\nexpo-location + react-native-maps"]
+  end
+
+  subgraph Supabase["Supabase Backend"]
+    Auth["Auth"]
+    DB["PostgreSQL\nprofiles, safety_contacts,\nwork_sessions, alerts"]
+    Storage["Storage\nAvatar Uploads"]
+    Edge["Edge Function\nsend-alert"]
+  end
+
+  subgraph External["External Services"]
+    Resend["Resend API\nTransactional Email"]
+    SafetyContact["Safety Contact\nEmail/Phone"]
+  end
+
+  Worker["Lone Forest Worker"] --> UI
+  Supervisor["Supervisor"] --> UI
+
+  UI --> State
+  State --> Auth
+  State --> DB
+  UI --> Storage
+  Maps --> DB
+
+  State -->|invoke| Edge
+  Edge --> Resend
+  Resend --> SafetyContact
+
+  DB -->|status: active → grace → alert_sent| Edge
+  DB --> UI
+
+```
+
 ## Tech Stack
 ### Mobile
 React Native + Expo SDK 55
